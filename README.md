@@ -120,9 +120,8 @@ APPROACHING RUNWAY and ON RUNWAY have no free real recording, so they were made 
 with the [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model (Apache 2.0,
 voice "Emma"), then given the MD-11 voice's pitch, tone and speaker hiss.
 
-**Fonts:** [Barlow](https://github.com/jpt/barlow), [Overpass](https://github.com/RedHatOfficial/Overpass)
-and [B612](https://github.com/polarsys/b612), under the SIL Open Font License (texts in
-`app/src/main/assets/licenses`).
+**Fonts:** [Barlow](https://github.com/jpt/barlow) and [Overpass](https://github.com/RedHatOfficial/Overpass),
+under the SIL Open Font License (texts in `app/src/main/assets/licenses`).
 
 ## License
 
