@@ -84,6 +84,7 @@ object Gpws {
     private const val TRAFFIC_AHEAD_COOLDOWN_MS = 3 * 60_000L
     private const val GLIDESLOPE_COOLDOWN_MS = 60_000L
     private const val OVERSPEED_COOLDOWN_MS = 2 * 60_000L
+    private const val CAR_GONE_MS = 20_000L           // the car must stay gone this long to disarm
     private const val AP_DISC_MIN_M = 300.0          // cancelling navigation further out than this = AP disconnect
     private const val SPAM_LIMIT = 20                 // sounds per minute before the spam guard steps in
 
@@ -315,6 +316,38 @@ object Gpws {
             say(Alerts.APPROACHING_RUNWAY, instruction.take(60))
         }
     }
+    /** One reading of Maps' notification, from the real one or from [MockMaps]. */
+    fun onMaps(r: NavParser.Reading) {
+        if (r.rerouting) onMapsRerouting()
+        if (r.arrived) {
+            onMapsArrived()
+        } else {
+            r.metres?.let {
+                onMapsDistance(it, r.resolution, r.minutes)
+                onMapsManeuver(r.instruction, r.turnMetres)
+            }
+        }
+    }
+
+    /** True while [MockMaps] drives: it speaks even when inhibited, and real Maps is ignored meanwhile. */
+    var isMocking = false
+        private set
+
+    fun startMock() {
+        stopSimulation()
+        voice.stopAll()
+        stopTicking()
+        reset()
+        isMocking = true
+        Events.add("mock Maps drive: 700 m, a missed turn at 400 m to go")
+    }
+
+    fun stopMock() {
+        if (!isMocking) return
+        isMocking = false
+        Events.add("mock Maps drive done")
+    }
+
     fun onMapsRerouting() { if (!simulating) rerouted() }
     fun onMapsArrived() { if (!simulating) arrived() }
     fun onMapsEnded() { if (!simulating) ended() }
@@ -357,10 +390,24 @@ object Gpws {
             car = inCar  // the first reading after start is just noted
             return
         }
+        if (inCar) main.removeCallbacks(carLeft)  // back within the grace period: never left
         if (inCar == car) return
-        car = inCar
-        Events.add(if (inCar) "CAR: ${carVia?.lowercase()} connected" else "CAR: disconnected")
-        if (isOn(Feature.AUTO_ARM) && armed != inCar) armed = inCar
+        if (!inCar) {
+            // Car Bluetooth drops for a second when it switches profiles; only a lasting loss counts.
+            main.removeCallbacks(carLeft)
+            main.postDelayed(carLeft, CAR_GONE_MS)
+            return
+        }
+        car = true
+        Events.add("CAR: ${carVia?.lowercase()} connected")
+        if (isOn(Feature.AUTO_ARM) && !armed) armed = true
+    }
+
+    private val carLeft = Runnable {
+        if (viaAndroidAuto == true || viaBluetooth) return@Runnable
+        car = false
+        Events.add("CAR: disconnected")
+        if (isOn(Feature.AUTO_ARM) && armed) armed = false
     }
 
     /** Smart volume, in millibels: nothing up to 40 km/h, rising to +6 dB at 100 km/h. */
@@ -629,7 +676,7 @@ object Gpws {
     }
 
     // Real drives obey the killswitch; the simulation is a test, so it always plays.
-    private fun live() = armed || simulating
+    private fun live() = armed || simulating || isMocking
 
     private fun say(s: Sound, note: String) {
         if (!live()) return

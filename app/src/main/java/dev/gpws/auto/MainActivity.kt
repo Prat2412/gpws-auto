@@ -250,7 +250,7 @@ class MainActivity : Activity() {
         val s = Gpws.lastSound
         val last = if (s != null && SystemClock.elapsedRealtime() - Gpws.lastSoundAt < 120_000) s.short else null
         val below = d != null && Gpws.isOn(Gpws.Feature.MINIMUMS) && d <= Gpws.minimumsM
-        return Approach(d, Gpws.minutesLeft, Gpws.armed, Gpws.isSimulating, calls, next, last, below)
+        return Approach(d, Gpws.minutesLeft, Gpws.armed, Gpws.isSimulating || Gpws.isMocking, calls, next, last, below)
     }
 
     /** "420" and "M", or "12.4" and "KM" from 10 km out. */
@@ -262,18 +262,25 @@ class MainActivity : Activity() {
 
     private fun minimumsOn() = Gpws.isOn(Gpws.Feature.MINIMUMS)
 
-    /** On both home pages: Maps' own voice and GPWS share the speaker. */
-    private fun mapsVoiceCaution(col: LinearLayout) = skin.caution(
-        col, "Caution",
-        "Using the Google Maps voice? Then use either that or these callouts, not both: they can talk over each other.",
-    )
+    /** On both home pages: Maps' own voice and GPWS share the speaker; and GPWS needs Maps' notifications. */
+    private fun mapsVoiceCaution(col: LinearLayout) {
+        skin.caution(
+            col, "Caution",
+            "Using the Google Maps voice? Then use either that or these callouts, not both: they can talk over each other.",
+        )
+        skin.caution(
+            col, "Caution",
+            "Keep Google Maps' notifications on. GPWS reads Maps' navigation notification to know how far you are: " +
+                "without it, there are no callouts.",
+        )
+    }
 
     /** On both home pages, hidden until Maps can't be read: then it points at the update. */
     private fun unreadableWarning(col: LinearLayout): View = skin.caution(
         col, "Can't read Maps",
-        "Google Maps is navigating, but GPWS can't read how far you are. GPWS reads Maps in English " +
-            "only: if your Maps is in another language, set it to English. Otherwise a Maps update " +
-            "probably changed its layout: get the latest GPWS Auto from GitHub.",
+        "Google Maps is navigating, but GPWS can't read how far you are. On Android 15 and older, " +
+            "GPWS needs Maps in English: if yours is in another language, set it to English. Otherwise " +
+            "a Maps update probably changed its layout: get the latest GPWS Auto from GitHub.",
     ).apply {
         addView(skin.button("Check for update", primary = true) { checkForUpdate() }, skin.lp(top = 10))
         visibility = View.GONE
@@ -837,6 +844,11 @@ class MainActivity : Activity() {
             Gpws.simulate()
             show(Page.HOME)  // watch it count down
         }
+        s.row(tools, "Maps self-test", "Checks GPWS reads every Maps style", s.value(s.name("Run"))) { mapsSelfTest() }
+        s.row(tools, "Mock Maps drive", "A fake 700 m drive with a missed turn, through the real Maps path", s.value(s.name("Run"))) {
+            MockMaps.drive()
+            show(Page.HOME)
+        }
         s.row(tools, "Event log", null, s.value(s.name("Open"))) { open(Page.LOG) }
         s.row(tools, "Classic PFD", "The old Boeing-style display", s.value(s.name("Open"))) { open(Page.PFD) }
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
@@ -851,7 +863,8 @@ class MainActivity : Activity() {
 
         col.addView(
             s.note(
-                "GPWS reads Google Maps' navigation notification to know how far away you are. Nothing " +
+                "GPWS reads Google Maps' navigation notification to know how far away you are, so keep " +
+                    "Maps' notifications on. Nothing " +
                     "leaves your phone, except TomTom traffic checks if you add a key, and update checks " +
                     "when you tap Check.",
             ),
@@ -879,6 +892,20 @@ class MainActivity : Activity() {
             bluetooth.setTextColor(if (mine != null) ok else s.accent)
         }
         return col
+    }
+
+    /** Real Maps notification samples through the parser, PASS or FAIL each. */
+    private fun mapsSelfTest() {
+        val s = skin
+        val results = MockMaps.selfTest()
+        val body = s.dialogBody()
+        results.forEach { (ok, line) ->
+            body.addView(s.text((if (ok) "PASS  " else "FAIL  ") + line, 14f, if (ok) s.ink else s.warn).apply {
+                setLineSpacing(0f, 1.2f)
+            }, s.lp(top = 6))
+        }
+        val passed = results.count { it.first }
+        s.show(s.dialog("$passed of ${results.size} passed").setView(ScrollView(this).apply { addView(body) }).setPositiveButton("OK", null))
     }
 
     /** Opens a web page in the browser; the app itself never goes online for it. */
@@ -1033,6 +1060,17 @@ class MainActivity : Activity() {
             val v = s.value()
             s.row(list, item.label, item.why, v) { item.act() }
             item to v
+        }
+        s.row(
+            list, "Google Maps notifications",
+            "Must stay on: GPWS reads Maps' navigation notification. Tap to check Maps' notification settings.",
+            s.value(s.name("Check")),
+        ) {
+            try {
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, "com.google.android.apps.maps"))
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(this, "Open Settings → Apps → Maps → Notifications", Toast.LENGTH_LONG).show()
+            }
         }
         s.row(list, "App info", "Android's page for this app", s.value(s.name("Open"))) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))

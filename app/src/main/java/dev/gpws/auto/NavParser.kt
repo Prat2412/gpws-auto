@@ -16,6 +16,10 @@ import kotlin.math.pow
  * Google Maps puts the distance to the next turn in the title ("250 m") and a trip summary in
  * the subtext ("13 min · 4.6 km · 11:55 ETA"). The summary is what we want, except on the final
  * stretch: there the next "turn" is the destination itself and Maps shows it more precisely.
+ *
+ * On Android 16+ Maps posts a Live Update instead ("120 m · At the roundabout…", "Arrive 6:56 pm")
+ * with no trip distance in the text. The trip is its progress bar, in metres: progressMax is the
+ * route's length and progress how far along it you are. Numbers, so any Maps language works.
  */
 object NavParser {
 
@@ -33,6 +37,16 @@ object NavParser {
         val turnMetres: Double? = null,  // how far off that turn is
     )
 
+    /** What the parser reads from a notification: its text lines, and its progress bar if it has one. */
+    class Fields(
+        val lines: List<String>,
+        val template: String? = null,
+        val progress: Int = -1,
+        val max: Int = 0,
+        val indeterminate: Boolean = false,
+        val sub: String? = null,
+    )
+
     private class Distance(val metres: Double, val resolution: Double)
 
     private const val SP = """[\s\u00A0\u202F]*"""  // any spacing, incl. the non-breaking kinds Maps uses
@@ -42,6 +56,7 @@ object NavParser {
     private val REROUTING = Regex("""\brerout|recalculat""", RegexOption.IGNORE_CASE)
     private val HOURS = Regex("""(\d+)$SP(?:h|hr|hrs|hours?)\b""", RegexOption.IGNORE_CASE)
     private val MINUTES = Regex("""(\d+)$SP(?:min|mins)\b""", RegexOption.IGNORE_CASE)
+    private val CLOCK = Regex("""(\d{1,2}):(\d{2})$SP([ap]\.?m\.?)?""", RegexOption.IGNORE_CASE)
 
     /** Every simple value in the notification's extras, for the drive log: finds data we don't parse yet. */
     @Suppress("DEPRECATION")
@@ -73,16 +88,35 @@ object NavParser {
         e.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.forEach { add(it, lines) }
         add(n.tickerText, lines)
 
-        val r = parse(lines)
+        val r = parse(fields(n, lines))
         if (r.metres != null || r.arrived) return r
         // Fallback for custom layouts: the numbers may only exist inside the notification's views.
         for (rv in listOf(n.bigContentView, n.contentView, n.headsUpContentView)) {
             if (rv != null) viewText(ctx, rv, lines)
         }
-        return parse(lines)
+        return parse(fields(n, lines))
     }
 
-    private fun parse(lines: List<String>): Reading {
+    private fun fields(n: Notification, lines: List<String>): Fields {
+        val e = n.extras
+        return Fields(
+            lines.toList(),
+            e.getString(Notification.EXTRA_TEMPLATE),
+            e.getInt(Notification.EXTRA_PROGRESS, -1),
+            e.getInt(Notification.EXTRA_PROGRESS_MAX, 0),
+            e.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false),
+            e.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
+        )
+    }
+
+    /** The reading from a notification's fields: the progress bar if it's a Live Update, else the text. */
+    fun parse(f: Fields): Reading {
+        val r = parseText(f.lines)
+        val left = tripBar(f) ?: return r
+        return fromBar(r, left, f.sub)
+    }
+
+    private fun parseText(lines: List<String>): Reading {
         var trip: Distance? = null
         var turn: Distance? = null
         var minutes: Int? = null
@@ -121,6 +155,40 @@ object NavParser {
                 .joinToString(" · "),
             u?.metres,
         )
+    }
+
+    /** Metres left on a Live Update's progress bar, or null if this notification isn't one. */
+    private fun tripBar(f: Fields): Double? {
+        if (f.template?.endsWith("ProgressStyle") != true || f.indeterminate) return null
+        if (f.max !in 1..2_000_000 || f.progress !in 0..f.max) return null
+        return (f.max - f.progress).toDouble()
+    }
+
+    /** The text reading [r] with the bar's exact distance in charge, and minutes from "Arrive 6:56 pm". */
+    private fun fromBar(r: Reading, left: Double, sub: String?): Reading {
+        // A classic summary, if Maps still sends one, agrees anyway; the bar is to the metre.
+        val minutes = r.minutes ?: sub?.let { untilClock(it) }
+        return Reading(
+            left, 10.0, r.arrived, r.rerouting,
+            r.lines + "progress bar: %.0f m to go".format(left),
+            minutes, r.instruction, r.turnMetres,
+        )
+    }
+
+    /** Minutes from now until a clock time like "6:56 pm" or "18:56", or null. */
+    private fun untilClock(s: String): Int? {
+        val m = CLOCK.find(s) ?: return null
+        var h = m.groupValues[1].toInt()
+        val min = m.groupValues[2].toInt()
+        val ampm = m.groupValues[3].lowercase().replace(".", "")
+        if (ampm == "pm" && h < 12) h += 12
+        if (ampm == "am" && h == 12) h = 0
+        if (h > 23 || min > 59) return null
+        val c = java.util.Calendar.getInstance()
+        val nowMin = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE)
+        var diff = h * 60 + min - nowMin
+        if (diff < -5) diff += 24 * 60  // arriving after midnight
+        return diff.coerceAtLeast(0)
     }
 
     private fun toDistance(m: MatchResult): Distance {

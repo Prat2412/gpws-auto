@@ -96,6 +96,7 @@ class NavListener : NotificationListenerService() {
             (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
         if (!ongoing) return
         Gpws.init(this)
+        if (Gpws.isMocking) return  // the mock drive has the stage
         val r = NavParser.read(this, n)
         val useful = r.metres != null || r.arrived || r.rerouting
         watchReadable(sbn, n, useful)
@@ -110,11 +111,7 @@ class NavListener : NotificationListenerService() {
             Gpws.onAndroidAuto(Car.connected(this))
             Gpws.onCarBluetooth(Car.bluetoothCar(this))
         }
-        if (r.rerouting) Gpws.onMapsRerouting()
-        if (r.arrived) Gpws.onMapsArrived() else r.metres?.let {
-            Gpws.onMapsDistance(it, r.resolution, r.minutes)
-            Gpws.onMapsManeuver(r.instruction, r.turnMetres)
-        }
+        Gpws.onMaps(r)
     }
 
     /**
