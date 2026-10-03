@@ -271,8 +271,9 @@ class MainActivity : Activity() {
     /** On both home pages, hidden until Maps can't be read: then it points at the update. */
     private fun unreadableWarning(col: LinearLayout): View = skin.caution(
         col, "Can't read Maps",
-        "Google Maps is navigating, but GPWS can't read how far you are. A Maps update probably " +
-            "changed its layout. Get the latest GPWS Auto from GitHub:",
+        "Google Maps is navigating, but GPWS can't read how far you are. GPWS reads Maps in English " +
+            "only: if your Maps is in another language, set it to English. Otherwise a Maps update " +
+            "probably changed its layout: get the latest GPWS Auto from GitHub.",
     ).apply {
         addView(skin.button("Check for update", primary = true) { checkForUpdate() }, skin.lp(top = 10))
         visibility = View.GONE
@@ -841,12 +842,11 @@ class MainActivity : Activity() {
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
 
         val support = s.section(col, "Support")
+        s.row(support, "Report a problem", "Tell me on GitHub what went wrong", s.value(s.name("Open"))) {
+            openLink("https://github.com/${Updater.REPO}/issues")
+        }
         s.row(support, "Buy me a coffee", "If GPWS Auto made you smile ☕", s.value(s.name("Open"))) {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/prat12")))
-            } catch (e: ActivityNotFoundException) {
-                Toast.makeText(this, "No browser to open buymeacoffee.com/prat12", Toast.LENGTH_LONG).show()
-            }
+            openLink("https://buymeacoffee.com/prat12")
         }
 
         col.addView(
@@ -879,6 +879,15 @@ class MainActivity : Activity() {
             bluetooth.setTextColor(if (mine != null) ok else s.accent)
         }
         return col
+    }
+
+    /** Opens a web page in the browser; the app itself never goes online for it. */
+    private fun openLink(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No browser to open $url", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ---- Updates: from GitHub, only when asked ----
@@ -916,7 +925,7 @@ class MainActivity : Activity() {
         if (r.apkUrl != null) {
             d.setPositiveButton("Install") { _, _ -> downloadUpdate(r) }
         } else {
-            d.setPositiveButton("Open GitHub") { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(r.page))) }
+            d.setPositiveButton("Open GitHub") { _, _ -> openLink(r.page) }
         }
         s.show(d.setNegativeButton("Later", null))
     }

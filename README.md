@@ -43,7 +43,9 @@ your music during callouts, gets louder at speed, and stays quiet during calls.
 
 ## Install
 
-Needs Android 8 or newer, and Google Maps.
+Needs Android 8 or newer, and Google Maps **in English** (GPWS Auto reads Maps' English text; on
+Android 13+ you can set just Maps to English in Settings → Apps → Maps → Language). Distances in
+miles work too.
 
 1. Download the latest `.apk` from [Releases](https://github.com/Prat2412/gpws-auto/releases/latest) and open it. If Android asks,
    allow your browser to install apps.
@@ -84,7 +86,8 @@ the way you would without it.
 ## Built with AI
 
 I'm not a programmer. The whole app was written by Claude (Anthropic's AI, Opus 5.5) from my
-ideas, and I tested it in my car. Bug reports and pull requests are welcome.
+ideas, and I tested it in my car. Found a bug? [Open an issue](https://github.com/Prat2412/gpws-auto/issues)
+(or use **Status → Report a problem** in the app). Pull requests are welcome.
 
 ## Build it yourself
 
