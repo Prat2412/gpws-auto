@@ -152,7 +152,13 @@ object Gpws {
 
     fun isOn(f: Feature) = prefs().getBoolean(f.key, f.default)
 
-    fun setOn(f: Feature, on: Boolean) = prefs().edit().putBoolean(f.key, on).apply()
+    /** GLIDESLOPE and missed-turn RETARD are the same moment, so switching one on switches the other off. */
+    fun setOn(f: Feature, on: Boolean) {
+        val e = prefs().edit().putBoolean(f.key, on)
+        if (on && f == Feature.GLIDESLOPE) e.putBoolean(Feature.MISSED_RETARD.key, false)
+        if (on && f == Feature.MISSED_RETARD) e.putBoolean(Feature.GLIDESLOPE.key, false)
+        e.apply()
+    }
 
     var overspeedKmh: Int
         get() = prefs().getInt("overspeed_kmh", 100)
