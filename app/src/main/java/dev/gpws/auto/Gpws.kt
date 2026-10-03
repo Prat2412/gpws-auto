@@ -316,7 +316,7 @@ object Gpws {
             say(Alerts.APPROACHING_RUNWAY, instruction.take(60))
         }
     }
-    /** One reading of Maps' notification, from the real one or from [MockMaps]. */
+    /** One reading of Maps' navigation notification. */
     fun onMaps(r: NavParser.Reading) {
         if (r.rerouting) onMapsRerouting()
         if (r.arrived) {
@@ -327,25 +327,6 @@ object Gpws {
                 onMapsManeuver(r.instruction, r.turnMetres)
             }
         }
-    }
-
-    /** True while [MockMaps] drives: it speaks even when inhibited, and real Maps is ignored meanwhile. */
-    var isMocking = false
-        private set
-
-    fun startMock() {
-        stopSimulation()
-        voice.stopAll()
-        stopTicking()
-        reset()
-        isMocking = true
-        Events.add("mock Maps drive: 700 m, a missed turn at 400 m to go")
-    }
-
-    fun stopMock() {
-        if (!isMocking) return
-        isMocking = false
-        Events.add("mock Maps drive done")
     }
 
     fun onMapsRerouting() { if (!simulating) rerouted() }
@@ -676,7 +657,7 @@ object Gpws {
     }
 
     // Real drives obey the killswitch; the simulation is a test, so it always plays.
-    private fun live() = armed || simulating || isMocking
+    private fun live() = armed || simulating
 
     private fun say(s: Sound, note: String) {
         if (!live()) return

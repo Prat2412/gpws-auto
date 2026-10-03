@@ -250,7 +250,7 @@ class MainActivity : Activity() {
         val s = Gpws.lastSound
         val last = if (s != null && SystemClock.elapsedRealtime() - Gpws.lastSoundAt < 120_000) s.short else null
         val below = d != null && Gpws.isOn(Gpws.Feature.MINIMUMS) && d <= Gpws.minimumsM
-        return Approach(d, Gpws.minutesLeft, Gpws.armed, Gpws.isSimulating || Gpws.isMocking, calls, next, last, below)
+        return Approach(d, Gpws.minutesLeft, Gpws.armed, Gpws.isSimulating, calls, next, last, below)
     }
 
     /** "420" and "M", or "12.4" and "KM" from 10 km out. */
@@ -840,10 +840,6 @@ class MainActivity : Activity() {
             show(Page.HOME)  // watch it count down
         }
         s.row(tools, "Maps self-test", "Checks GPWS reads every Maps style", s.value(s.name("Run"))) { mapsSelfTest() }
-        s.row(tools, "Mock Maps drive", "A fake 700 m drive with a missed turn, through the real Maps path", s.value(s.name("Run"))) {
-            MockMaps.drive()
-            show(Page.HOME)
-        }
         s.row(tools, "Event log", null, s.value(s.name("Open"))) { open(Page.LOG) }
         s.row(tools, "Classic PFD", "The old Boeing-style display", s.value(s.name("Open"))) { open(Page.PFD) }
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
@@ -892,7 +888,7 @@ class MainActivity : Activity() {
     /** Real Maps notification samples through the parser, PASS or FAIL each. */
     private fun mapsSelfTest() {
         val s = skin
-        val results = MockMaps.selfTest()
+        val results = MapsSelfTest.selfTest()
         val body = s.dialogBody()
         results.forEach { (ok, line) ->
             body.addView(s.text((if (ok) "PASS  " else "FAIL  ") + line, 14f, if (ok) s.ink else s.warn).apply {

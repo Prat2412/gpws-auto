@@ -96,7 +96,6 @@ class NavListener : NotificationListenerService() {
             (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
         if (!ongoing) return
         Gpws.init(this)
-        if (Gpws.isMocking) return  // the mock drive has the stage
         val r = NavParser.read(this, n)
         val useful = r.metres != null || r.arrived || r.rerouting
         watchReadable(sbn, n, useful)
