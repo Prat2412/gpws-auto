@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.StatusBarManager
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Intent
@@ -816,6 +817,15 @@ class MainActivity : Activity() {
         s.row(tools, "Event log", null, s.value(s.name("Open"))) { open(Page.LOG) }
         s.row(tools, "Classic PFD", "The old Boeing-style display", s.value(s.name("Open"))) { open(Page.PFD) }
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
+
+        val support = s.section(col, "Support")
+        s.row(support, "Buy me a coffee", "If GPWS Auto made you smile ☕", s.value(s.name("Open"))) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/prat12")))
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(this, "No browser to open buymeacoffee.com/prat12", Toast.LENGTH_LONG).show()
+            }
+        }
 
         col.addView(
             s.note(
