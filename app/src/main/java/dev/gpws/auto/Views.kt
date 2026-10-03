@@ -1,5 +1,6 @@
 package dev.gpws.auto
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -8,7 +9,9 @@ import android.graphics.Paint
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.min
 
@@ -318,5 +321,152 @@ class WaveView(ctx: Context, private val samples: FloatArray, private val rate: 
 
     companion object {
         private const val BLOCK = 64
+    }
+}
+
+/**
+ * The title screen: GPWS AUTO, and a plane flying the glide path down to the runway, the
+ * callout marks lighting up as it passes them. Drawn in the current look.
+ */
+class TitleView(ctx: Context, private val skin: Skin, private val version: String) : View(ctx) {
+
+    private val d = resources.displayMetrics.density
+    private val sp = resources.displayMetrics.scaledDensity
+    private var p = 0f  // 0..1 along the glide path
+    private val plane = ctx.getDrawable(R.drawable.ic_plane)!!.mutate()
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+    private val dash = DashPathEffect(floatArrayOf(6 * d, 6 * d), 0f)
+    private val dots = DashPathEffect(floatArrayOf(2 * d, 4 * d), 0f)
+    private val flight = ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = 1100
+        interpolator = DecelerateInterpolator(1.3f)
+        addUpdateListener {
+            p = it.animatedValue as Float
+            invalidate()
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        flight.start()
+    }
+
+    override fun onDetachedFromWindow() {
+        flight.cancel()
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val plate = skin.plate
+        val shown = (255 * min(1f, p * 3)).toInt()  // the words fade in over the first third of the flight
+        c.drawColor(skin.ground)
+
+        // Title: plain black type on the plate, a yellow sign on the signs.
+        val title = "GPWS AUTO"
+        text.typeface = skin.head
+        text.letterSpacing = if (plate) 0.04f else -0.02f
+        text.textSize = 76 * sp
+        text.textSize = min(text.textSize, text.textSize * w * 0.74f / text.measureText(title))
+        val ty = h * 0.36f
+        if (!plate) {
+            val half = text.measureText(title) / 2 + 22 * d
+            fill.color = skin.accent
+            fill.alpha = shown
+            c.drawRoundRect(w / 2 - half, ty - text.textSize * 0.95f, w / 2 + half, ty + text.textSize * 0.35f, 12 * d, 12 * d, fill)
+        }
+        text.color = if (plate) skin.ink else BLACK
+        text.alpha = shown
+        c.drawText(title, w / 2, ty, text)
+
+        text.typeface = skin.sub
+        text.letterSpacing = if (plate) 0.16f else 0.02f
+        text.textSize = 15 * sp
+        text.color = skin.muted
+        text.alpha = shown
+        c.drawText(skin.name("Landing callouts for your car"), w / 2, ty + 48 * d, text)
+
+        // The approach: ground, runway, the glide path flown solid and the rest dashed.
+        val ground = h * 0.74f
+        val x0 = w * 0.08f
+        val y0 = h * 0.55f
+        val tx = w * 0.70f
+        val pathColor = if (plate) skin.ink else skin.accent
+        stroke.strokeCap = Paint.Cap.ROUND
+        stroke.strokeWidth = 1 * d
+        stroke.color = skin.rule
+        c.drawLine(w * 0.05f, ground, w * 0.95f, ground, stroke)
+        stroke.strokeCap = Paint.Cap.BUTT
+        stroke.strokeWidth = 6 * d
+        stroke.color = pathColor
+        c.drawLine(tx, ground, w * 0.93f, ground, stroke)
+        stroke.strokeCap = Paint.Cap.ROUND
+
+        val px = x0 + (tx - x0) * p
+        val py = y0 + (ground - y0) * p
+        stroke.strokeWidth = 3 * d
+        stroke.color = pathColor
+        c.drawLine(x0, y0, px, py, stroke)
+        if (p < 1f) {
+            stroke.strokeWidth = 2 * d
+            stroke.pathEffect = dash
+            stroke.color = skin.faint
+            c.drawLine(px, py, tx, ground, stroke)
+            stroke.pathEffect = null
+        }
+
+        // The callout marks under the path light up as the plane passes them.
+        text.typeface = skin.sub
+        text.letterSpacing = 0.04f
+        text.textSize = 12 * sp
+        for (m in ProfileView.MARKS.dropLast(1)) {
+            val f = ProfileView.position(m.toDouble())
+            val mx = x0 + (tx - x0) * f
+            val passed = p >= f
+            stroke.strokeWidth = 1 * d
+            stroke.color = skin.rule
+            stroke.pathEffect = dots
+            c.drawLine(mx, y0 + (ground - y0) * f + 8 * d, mx, ground, stroke)
+            stroke.pathEffect = null
+            text.color = if (passed) skin.accent else skin.faint
+            c.drawText("$m", mx, ground + 20 * d, text)
+        }
+        if (p >= 0.98f) {
+            text.typeface = skin.head
+            text.textSize = 14 * sp
+            text.color = pathColor
+            c.drawText("RETARD", (tx + w * 0.93f) / 2, ground - 14 * d, text)
+        }
+
+        // The plane, nose along the path.
+        val size = (30 * d).toInt()
+        c.save()
+        c.translate(px, py)
+        c.rotate(90f + Math.toDegrees(atan2((ground - y0).toDouble(), (tx - x0).toDouble())).toFloat())
+        plane.setBounds(-size / 2, -size / 2, size / 2, size / 2)
+        plane.setTint(pathColor)
+        plane.draw(c)
+        c.restore()
+
+        // Who made it, and which version.
+        text.typeface = skin.sub
+        text.letterSpacing = if (plate) 0.16f else 0.02f
+        text.textSize = 14 * sp
+        text.color = skin.ink
+        text.alpha = shown
+        c.drawText(skin.name("by Prat"), w / 2, h - 58 * d, text)
+        text.typeface = skin.body
+        text.letterSpacing = 0f
+        text.textSize = 12 * sp
+        text.color = skin.faint
+        text.alpha = shown
+        c.drawText("v$version", w / 2, h - 36 * d, text)
+    }
+
+    private companion object {
+        const val BLACK = 0xFF141414.toInt()
     }
 }

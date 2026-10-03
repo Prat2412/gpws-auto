@@ -29,6 +29,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowInsetsController
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -88,13 +89,34 @@ class MainActivity : Activity() {
         Fonts.init(this)
         skin = Skin(this, savedSkin())
         frame = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        setContentView(frame)
+        val root = FrameLayout(this)
+        root.addView(frame, FrameLayout.LayoutParams(MATCH, MATCH))
+        setContentView(root)
         paint()
         importFile = savedInstanceState?.getString("importFile")
         importLabel = savedInstanceState?.getString("importLabel")
         parent = pageNamed(savedInstanceState?.getString("parent")) ?: Page.STATUS
         // The file picker can outlive this activity; come back to the page it was opened from.
         show(pageNamed(savedInstanceState?.getString("page")) ?: if (prefs().getBoolean("setup_done", false)) Page.HOME else Page.SETUP)
+        if (savedInstanceState == null) titleScreen(root)
+    }
+
+    /** The title screen over the first page, on a fresh start only. Gone after 1.5 s, or at a tap. */
+    private fun titleScreen(root: FrameLayout) {
+        val t = TitleView(this, skin, Updater.installed(this)).apply {
+            contentDescription = "GPWS Auto, by Prat"
+            isClickable = true
+        }
+        var gone = false
+        val hide = Runnable {
+            if (!gone) {
+                gone = true
+                t.animate().alpha(0f).setDuration(250).withEndAction { root.removeView(t) }.start()
+            }
+        }
+        t.setOnClickListener { hide.run() }
+        root.addView(t, FrameLayout.LayoutParams(MATCH, MATCH))
+        main.postDelayed(hide, 1500)
     }
 
     private fun pageNamed(name: String?) = Page.values().firstOrNull { it.name == name }
