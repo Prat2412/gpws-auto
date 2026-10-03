@@ -160,7 +160,9 @@ object NavParser {
     /** Metres left on a Live Update's progress bar, or null if this notification isn't one. */
     private fun tripBar(f: Fields): Double? {
         if (f.template?.endsWith("ProgressStyle") != true || f.indeterminate) return null
-        if (f.max !in 1..2_000_000 || f.progress !in 0..f.max) return null
+        // While Maps reroutes it posts the new route's length with progress 0 for an update or two,
+        // as if you were back at the start: a false jump. Skip those; the next reading has it right.
+        if (f.max !in 1..2_000_000 || f.progress !in 1..f.max) return null
         return (f.max - f.progress).toDouble()
     }
 

@@ -22,6 +22,8 @@ object MapsSelfTest {
         Sample("Live Update (Android 16+)", liveUpdate("120 m · At the roundabout, take the 2nd exit onto NDA Rd", "Arrive 6:51 pm", 305, 3489), 3184.0),
         Sample("Live Update, setting off", liveUpdate("Head toward Lane No. 2", "Arrive 6:56 pm", 2, 3490), 3488.0),
         Sample("Live Update, Maps in Hindi", liveUpdate("120 मी · गोल चक्कर से दूसरा निकास लें", "पहुंचें 6:51 pm", 305, 3489), 3184.0),
+        Sample("Live Update, miles", liveUpdate("0.6 mi · Turn left onto Raj Bhavan Rd", "Arrive 7:28 pm", 1515, 3038), 1523.0),
+        Sample("Live Update, reroute blip: skipped", liveUpdate("0.1 mi · Make a U-turn", "Arrive 7:31 pm", 0, 3038), null),
         Sample("Classic, km", classic("250 m", "Turn left onto MG Road", "13 min · 4.6 km · 11:55 ETA"), 4600.0),
         Sample("Classic, final stretch", classic("80 m", "Destination will be on the right", "1 min · 0.1 km · 11:55 ETA"), 80.0),
         Sample("Classic, miles", classic("500 ft", "Turn right onto Main St", "12 min · 2.9 mi · 11:55 AM ETA"), 4667.1),
