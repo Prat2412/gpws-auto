@@ -84,6 +84,8 @@ object Gpws {
     private const val TRAFFIC_AHEAD_COOLDOWN_MS = 3 * 60_000L
     private const val GLIDESLOPE_COOLDOWN_MS = 60_000L
     private const val OVERSPEED_COOLDOWN_MS = 2 * 60_000L
+    private const val EXACT_NO_GPS_M = 30.0        // dead-reckoning allowed past a Live Update reading without GPS
+    private const val WAIT_MS = 3000L                 // a callout waits this long behind one still playing
     private const val CAR_GONE_MS = 20_000L           // the car must stay gone this long to disarm
     private const val AP_DISC_MIN_M = 300.0          // cancelling navigation further out than this = AP disconnect
     private const val SPAM_LIMIT = 20                 // sounds per minute before the spam guard steps in
@@ -96,6 +98,7 @@ object Gpws {
     private var shownAt = 0L
     private var moved = 0.0            // metres travelled since `shown` appeared
     private var step = 50.0            // Maps' rounding for the current number
+    private var exact = false          // the number is Maps' Live Update bar: exact, but sparse
     private var navSpeed = 0.0         // m/s implied by Maps' drops
     private var gpsSpeed = 0.0
     private var gpsAt = 0L
@@ -304,9 +307,10 @@ object Gpws {
 
     // ---- Real-world inputs (ignored while a simulation runs) ----
 
-    fun onMapsDistance(metres: Double, resolution: Double, minutes: Int?) {
+    fun onMapsDistance(metres: Double, resolution: Double, minutes: Int?, exact: Boolean = false) {
         if (simulating) return
         tripMinutes = minutes
+        this.exact = exact
         distance(metres, resolution)
     }
     /** Maps' next-turn instruction and how far off it is, for the highway (runway) calls. */
@@ -323,7 +327,7 @@ object Gpws {
             onMapsArrived()
         } else {
             r.metres?.let {
-                onMapsDistance(it, r.resolution, r.minutes)
+                onMapsDistance(it, r.resolution, r.minutes, r.exact)
                 onMapsManeuver(r.instruction, r.turnMetres)
             }
         }
@@ -600,9 +604,15 @@ object Gpws {
         val gps = gpsFresh()
         moved += (if (gps) gpsSpeed else navSpeed) * (now - lastTick) / 1000.0
         lastTick = now
-        // Never dead-reckon past what Maps' rounding allows. Without GPS we can't tell a red
-        // light from driving, so stay within half a rounding step of the number Maps shows.
-        val floor = max(0.0, s - (if (gps) step else step / 2))
+        // Classic Maps rounds ("0.4 km") and changes the number as you cross each step, so never
+        // dead-reckon past its rounding. The Live Update bar is exact but only comes every 1-10 s,
+        // sometimes 100 m apart: with GPS speed, count down freely in between. Without GPS we
+        // can't tell a red light from driving, so stay close to the number Maps shows.
+        val floor = when {
+            exact && gps -> 0.0
+            exact -> max(0.0, s - EXACT_NO_GPS_M)
+            else -> max(0.0, s - (if (gps) step else step / 2))
+        }
         val d = max(floor, s - moved)
         val prev = last ?: d
         last = d
@@ -623,7 +633,7 @@ object Gpws {
         waiting?.let { w ->
             if (!voice.busy) {
                 waiting = null
-                if (now - waitingAt < 1500) countdown(w, d)
+                if (now - waitingAt < WAIT_MS) countdown(w, d)
             }
         }
         if (!retardFired && prev > TOUCHDOWN_M && d <= TOUCHDOWN_M) retard("touchdown")

@@ -35,6 +35,7 @@ object NavParser {
         val minutes: Int? = null,  // time left, from the same trip summary
         val instruction: String = "",  // the next turn, without its distance: "Take the ramp onto NH 48"
         val turnMetres: Double? = null,  // how far off that turn is
+        val exact: Boolean = false,  // from the Live Update bar: to the metre, but only every few seconds
     )
 
     /** What the parser reads from a notification: its text lines, and its progress bar if it has one. */
@@ -173,7 +174,7 @@ object NavParser {
         return Reading(
             left, 10.0, r.arrived, r.rerouting,
             r.lines + "progress bar: %.0f m to go".format(left),
-            minutes, r.instruction, r.turnMetres,
+            minutes, r.instruction, r.turnMetres, exact = true,
         )
     }
 

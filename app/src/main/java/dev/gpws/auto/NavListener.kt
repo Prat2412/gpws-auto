@@ -36,9 +36,21 @@ class NavListener : NotificationListenerService() {
     private var probePosts = 0             // -1: it has been read, so later blanks are blips
 
     private val gps = object : LocationListener {
+        private var prev: Location? = null
+
+        /** The fix's own speed, or, if it has none, distance over time from the fix before. */
+        private fun speedOf(l: Location): Double? {
+            if (l.hasSpeed()) return l.speed.toDouble()
+            val p = prev ?: return null
+            val secs = (l.elapsedRealtimeNanos - p.elapsedRealtimeNanos) / 1e9
+            return if (secs in 0.5..5.0) p.distanceTo(l) / secs else null
+        }
+
         override fun onLocationChanged(location: Location) {
+            val mps = speedOf(location)
+            prev = location
             Gpws.onGps(
-                if (location.hasSpeed()) location.speed.toDouble() else null,
+                mps,
                 if (location.hasBearing()) location.bearing else null,
                 location.latitude,
                 location.longitude,
