@@ -11,6 +11,8 @@ the distance to your destination as radio altitude, so as you arrive you hear
 
 Free, no ads, no account, no tracking. Just for fun.
 
+If you enjoy it, you can [buy me a coffee ☕](https://buymeacoffee.com/prat12).
+
 ## What it does
 
 **Landing callouts**
