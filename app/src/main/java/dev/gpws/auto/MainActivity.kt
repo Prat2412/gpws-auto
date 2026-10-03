@@ -263,33 +263,26 @@ class MainActivity : Activity() {
     private fun minimumsOn() = Gpws.isOn(Gpws.Feature.MINIMUMS)
 
     /** On both home pages: Maps' own voice and GPWS share the speaker; and GPWS needs Maps' notifications. */
-    private fun mapsVoiceCaution(col: LinearLayout) {
-        skin.caution(
-            col, "Caution",
-            "Using the Google Maps voice? Then use either that or these callouts, not both: they can talk over each other.",
-        )
-        skin.caution(
-            col, "Caution",
-            "Keep Google Maps' notifications on. GPWS reads Maps' navigation notification to know how far you are: " +
-                "without it, there are no callouts.",
-        )
-    }
+    private fun mapsVoiceCaution(col: LinearLayout) = skin.caution(
+        col, "Caution",
+        "• Use Maps voice or GPWS, not both: they overlap.\n" +
+            "• Keep Maps notifications on: GPWS reads them.",
+    )
 
     /** On both home pages, hidden until Maps can't be read: then it points at the update. */
     private fun unreadableWarning(col: LinearLayout): View = skin.caution(
         col, "Can't read Maps",
-        "Google Maps is navigating, but GPWS can't read how far you are. On Android 15 and older, " +
-            "GPWS needs Maps in English: if yours is in another language, set it to English. Otherwise " +
-            "a Maps update probably changed its layout: get the latest GPWS Auto from GitHub.",
+        "Maps is navigating, but GPWS can't read the distance. On Android 15 or older, set Maps " +
+            "to English. Otherwise, update GPWS:",
     ).apply {
         addView(skin.button("Check for update", primary = true) { checkForUpdate() }, skin.lp(top = 10))
         visibility = View.GONE
     }
 
     private fun missedNote() = when {
-        Gpws.isOn(Gpws.Feature.MISSED_RETARD) -> "Miss a turn and you hear RETARD, RETARD; the callouts re-arm from the new distance."
-        Gpws.isOn(Gpws.Feature.GLIDESLOPE) -> "Miss a turn and you hear GLIDESLOPE; the callouts re-arm from the new distance."
-        else -> "Miss a turn and the callouts re-arm from the new distance."
+        Gpws.isOn(Gpws.Feature.MISSED_RETARD) -> "Wrong turn: RETARD, RETARD, then the callouts restart."
+        Gpws.isOn(Gpws.Feature.GLIDESLOPE) -> "Wrong turn: GLIDESLOPE, then the callouts restart."
+        else -> "Wrong turn: the callouts restart."
     }
 
     private fun retardOn() = Gpws.isOn(Gpws.Feature.CALLOUTS) && Gpws.isOn(Gpws.Feature.RETARD)
@@ -397,6 +390,7 @@ class MainActivity : Activity() {
         val seq = FlowLayout(this, dp(10)).apply { setPadding(dp(12), dp(9), dp(12), dp(10)) }
         seqBox.addView(seq, s.lp(width = MATCH))
         col.addView(seqBox, s.lp(width = MATCH, top = 10))
+        col.addView(s.button("Open classic PFD") { open(Page.PFD) }, s.lp(width = MATCH, top = 10))
 
         col.addView(LinearLayout(this).apply {
             background = s.outline(2)
@@ -563,6 +557,7 @@ class MainActivity : Activity() {
         val terrTile = tile("TERRAIN", { Gpws.isOn(Gpws.Feature.TERRAIN) }) { Gpws.setOn(Gpws.Feature.TERRAIN, !Gpws.isOn(Gpws.Feature.TERRAIN)) }
         val trafficTile = tile("TRAFFIC", { Gpws.isOn(Gpws.Feature.TRAFFIC) }) { Gpws.setOn(Gpws.Feature.TRAFFIC, !Gpws.isOn(Gpws.Feature.TRAFFIC)) }
         col.addView(tiles, s.lp(width = MATCH, top = 10))
+        col.addView(s.button("Open classic PFD") { open(Page.PFD) }, s.lp(width = MATCH, top = 10))
         mapsVoiceCaution(col)
 
         live = {
