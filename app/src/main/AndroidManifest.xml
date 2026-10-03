@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Optional: GPS speed makes the 50/40/30/20/10 callouts land on time. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Lets the app show the "let GPWS run in the background?" dialog instead of sending you to Settings. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Only for the optional TomTom "traffic ahead" check and update checks you ask for. Nothing else goes online. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Installs an update downloaded from GitHub, after you confirm Android's own install screen. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <queries>
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.waze" />
+        <!-- Android Auto's "is a car connected?" provider, for auto-arm. -->
+        <provider android:authorities="androidx.car.app.connection" />
+        <!-- Without this, Android 11+ hides the text-to-speech engine from us. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".NavListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".KillTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile"
+            android:label="GPWS"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+        <!-- Hears back from Android's installer during an update. Not reachable by other apps. -->
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false" />
+        <!-- Hands an exported sound pack to the app you share it with; not open to anyone else. -->
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="dev.gpws.auto.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

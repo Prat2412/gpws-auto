@@ -1,0 +1,15 @@
+.gradle/
+.idea/
+build/
+local.properties
+*.iml
+
+# Signing keys never go in the repo (the real one lives in ../gpws-auto-signing)
+*.jks
+*.keystore
+keystore.properties
+
+# Working notes and experiments, not part of the app
+progress.md
+promo/
+soundalike/

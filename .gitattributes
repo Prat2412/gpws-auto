@@ -1,0 +1,3 @@
+# Keep the gradlew launcher runnable on Linux and macOS
+gradlew text eol=lf
+*.bat text eol=crlf
