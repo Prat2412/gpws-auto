@@ -47,6 +47,7 @@ object NavParser {
         val turnMetres: Double? = null,  // how far off that turn is
         val exact: Boolean = false,  // from the Live Update bar: to the metre, but only every few seconds
         val liveUpdate: Boolean = false,  // a Live Update, even when this one's bar had nothing usable
+        val guidance: Boolean = false,  // turn-by-turn going: a distance, a clock time or a Live Update in it
     )
 
     /** What the parser reads from a notification: its text lines, and its progress bar if it has one. */
@@ -304,7 +305,7 @@ object NavParser {
         val r = parseText(f.lines)
         val live = f.template?.endsWith("ProgressStyle") == true || f.compatTemplate?.endsWith("ProgressStyle") == true
         if (!live) return r
-        val left = tripBar(f) ?: return r.copy(liveUpdate = true)
+        val left = tripBar(f) ?: return r.copy(liveUpdate = true, guidance = true)
         return fromBar(r, left, f.sub)
     }
 
@@ -354,6 +355,8 @@ object NavParser {
                 .filter { it.isNotEmpty() }
                 .joinToString(" · "),
             u?.metres,
+            // Android Auto's "Driving with Google Maps" and "Starting navigation…" have none of these.
+            guidance = t != null || u != null || lines.any { CLOCK.containsMatchIn(it) },
         )
     }
 
@@ -379,6 +382,7 @@ object NavParser {
             minutes = minutes,
             exact = true,
             liveUpdate = true,
+            guidance = true,
         )
     }
 

@@ -25,8 +25,8 @@ object Runway {
     // Getting on: "Take the ramp onto…", "Merge onto…", "Turn left onto…", "Join…".
     private val ENTER = Regex("""\b(?:onto|ramp|merge|join)\b""", RegexOption.IGNORE_CASE)
     // Already on one, leaving, or beside it: "Continue on…", "Keep left to stay on…", "Take exit 12…",
-    // "Turn left onto NH 48 Service Rd".
-    private val NOT_ENTER = Regex("""\b(?:exit|continue|stay|service\s+r(?:oa)?d)\b""", RegexOption.IGNORE_CASE)
+    // "Turn left onto NH 48 Service Rd", "Turn left onto Ram Nagar Hwy Link Rd".
+    private val NOT_ENTER = Regex("""\b(?:exit|continue|stay|(?:service|link)\s+r(?:oa)?d)\b""", RegexOption.IGNORE_CASE)
 
     private var highway: String? = null  // the highway Maps is taking us onto
     private var called = false

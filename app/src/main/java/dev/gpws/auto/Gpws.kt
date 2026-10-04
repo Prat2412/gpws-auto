@@ -31,7 +31,11 @@ object Gpws {
     /** `file` is an audio clip in res/raw; if it's missing, text-to-speech says `speech`. */
     class Sound(val file: String, val speech: String, val label: String, val level: Level, val short: String = label)
 
-    class Callout(val metres: Int, val sound: Sound)
+    /** [then] plays straight after [sound]: the number a minimums call lands on, "MINIMUMS, TWO HUNDRED". */
+    class Callout(val metres: Int, val sound: Sound, val then: Sound? = null) {
+        /** How the display names it: "MINIMUMS 200". */
+        val short: String get() = if (then == null) sound.short else "${sound.short} ${then.short}"
+    }
 
     object Alerts {
         val V1 = Sound("gpws_v1", "V one", "V1", Level.ADVISORY)
@@ -77,14 +81,14 @@ object Gpws {
     private const val NEW_TRIP_JUMP_M = 20_000.0      // a jump this big means a new destination
     private const val GPS_FRESH_MS = 3000L
     private const val TICK_MS = 200L
-    private const val V1_MPS = 40 / 3.6
+    private const val V1_MPS = 20 / 3.6
     private const val TRAFFIC_MPS = 9 / 3.6           // averaging below this for 90 s = stuck in traffic
     private const val CLEAR_MPS = 22 / 3.6            // averaging above this for 15 s = moving again
     private const val TRAFFIC_COOLDOWN_MS = 5 * 60_000L
     private const val TRAFFIC_AHEAD_COOLDOWN_MS = 3 * 60_000L
     private const val GLIDESLOPE_COOLDOWN_MS = 60_000L
-    private const val OVERSPEED_COOLDOWN_MS = 2 * 60_000L
     private const val EXACT_NO_GPS_M = 30.0        // dead-reckoning allowed past a Live Update reading without GPS
+    private const val REROUTE_EXACT_M = 75.0          // the Live Update bar growing this much = a longer way in
     private const val WAIT_MS = 3000L                 // a callout waits this long behind one still playing
     private const val CAR_GONE_MS = 20_000L           // the car must stay gone this long to disarm
     private const val AP_DISC_MIN_M = 300.0          // cancelling navigation further out than this = AP disconnect
@@ -124,8 +128,7 @@ object Gpws {
     private var trafficAt = -TRAFFIC_COOLDOWN_MS
     private val speeds = ArrayDeque<Pair<Long, Double>>()  // recent GPS speeds, for traffic
     private var overCount = 0
-    private var overspeedArmed = true
-    private var overspeedAt = -OVERSPEED_COOLDOWN_MS
+    private var overspeedDone = false  // once a trip
     private val recentSounds = ArrayDeque<Long>()
     private var spamLogged = false
     private var tripMinutes: Int? = null
@@ -218,14 +221,17 @@ object Gpws {
         val p = pack
         val list = p.numbers.filter { numberOn(it.name.toInt()) }
             .map { Callout(it.name.toInt(), sound(p, it, Level.CALLOUT)) }.toMutableList()
-        val approach = p.approach
         if (isOn(Feature.MINIMUMS)) {
+            // A minimums call never swallows the number it lands on: it leads straight into it,
+            // "APPROACHING MINIMUMS, THREE HUNDRED", then "MINIMUMS, TWO HUNDRED".
+            fun lead(at: Int, call: Sound) {
+                val number = list.filter { abs(it.metres - at) < 15 }.minByOrNull { abs(it.metres - at) }
+                if (number != null) list.remove(number)
+                list += Callout(at, call, number?.sound)
+            }
             val dh = minimumsM
-            val approachAt = if (approach != null) dh + 100 else null
-            // Like the aircraft: the minimums calls replace any number that lands on top of them.
-            list.removeAll { abs(it.metres - dh) < 15 || (approachAt != null && abs(it.metres - approachAt) < 15) }
-            list += Callout(dh, sound(p, p.minimums, Level.CAUTION))
-            if (approach != null && approachAt != null) list += Callout(approachAt, sound(p, approach, Level.CALLOUT))
+            lead(dh, sound(p, p.minimums, Level.CAUTION))
+            p.approach?.let { lead(dh + 100, sound(p, it, Level.CALLOUT)) }
         }
         return list.sortedByDescending { it.metres }
     }
@@ -322,7 +328,9 @@ object Gpws {
     }
     /** One reading of Maps' navigation notification. */
     fun onMaps(r: NavParser.Reading) {
-        if (r.rerouting) onMapsRerouting()
+        // "Rerouting…" alone isn't a missed turn: a GPS jump makes Maps reroute onto the same road.
+        // The missed-turn call waits for the way in to actually get longer (see goAround).
+        if (r.rerouting && !simulating) Runway.reset()
         if (r.arrived) {
             onMapsArrived()
         } else {
@@ -333,7 +341,6 @@ object Gpws {
         }
     }
 
-    fun onMapsRerouting() { if (!simulating) rerouted() }
     fun onMapsArrived() { if (!simulating) arrived() }
     fun onMapsEnded() { if (!simulating) ended() }
     fun onGps(mps: Double?, bearing: Float?, lat: Double, lon: Double, altitude: Double?) {
@@ -446,7 +453,7 @@ object Gpws {
             return
         }
         if (metres == prev) return
-        if (metres > prev + max(150.0, 1.5 * resolution)) {
+        if (metres > prev + (if (exact) REROUTE_EXACT_M else max(150.0, 1.5 * resolution))) {
             goAround(metres, now)
             return
         }
@@ -505,7 +512,7 @@ object Gpws {
         gpsAt = now
         if (shown == null) return
         checkV1(mps)
-        checkOverspeed(mps, now)
+        checkOverspeed(mps)
         checkTraffic(mps, now)
         if (Runway.lineUp(mps, now) && isOn(Feature.RUNWAY)) say(Alerts.ON_RUNWAY, "%.0f km/h".format(mps * 3.6))
         Motion.onSpeed(mps, now)?.let { motion(it) }
@@ -528,19 +535,14 @@ object Gpws {
         if (isOn(Feature.V1)) say(Alerts.V1, "%.0f km/h".format(mps * 3.6))
     }
 
-    // One clacker burst per overspeed, never a continuous one. Re-arms once you're 10 km/h under.
-    private fun checkOverspeed(mps: Double, now: Long) {
-        val limit = overspeedKmh / 3.6
-        overCount = if (mps > limit) overCount + 1 else 0
-        if (overspeedArmed && overCount >= 2) {
-            overspeedArmed = false
-            if (now - overspeedAt > OVERSPEED_COOLDOWN_MS && isOn(Feature.OVERSPEED)) {
-                overspeedAt = now
-                say(Alerts.OVERSPEED, "%.0f km/h".format(mps * 3.6))
-            }
-        } else if (!overspeedArmed && mps < limit - 10 / 3.6) {
-            overspeedArmed = true
-        }
+    // Once a trip: the first time you're over the limit for two fixes running, the Airbus
+    // master-warning chime. After that it trusts you.
+    private fun checkOverspeed(mps: Double) {
+        if (overspeedDone || !isOn(Feature.OVERSPEED)) return
+        overCount = if (mps > overspeedKmh / 3.6) overCount + 1 else 0
+        if (overCount < 2) return
+        overspeedDone = true
+        say(Alerts.OVERSPEED, "%.0f km/h".format(mps * 3.6))
     }
 
     private fun checkTraffic(mps: Double, now: Long) {
@@ -641,7 +643,14 @@ object Gpws {
 
     private fun countdown(c: Callout, d: Double) {
         countdownSound = c.sound
-        say(c.sound, "%.0f m".format(d))
+        val next = c.then ?: return say(c.sound, "%.0f m".format(d))
+        say(c.sound, "%.0f m, then %s".format(d, next.label)) {
+            // Straight on into the number, unless GPWS was silenced or a call came in meanwhile.
+            if (!live() || (!simulating && onCall())) return@say
+            countdownSound = next
+            show(next)
+            voice.play(next.file, next.speech)
+        }
     }
 
     private fun retard(why: String) {
@@ -669,14 +678,14 @@ object Gpws {
     // Real drives obey the killswitch; the simulation is a test, so it always plays.
     private fun live() = armed || simulating
 
-    private fun say(s: Sound, note: String) {
+    private fun say(s: Sound, note: String, then: (() -> Unit)? = null) {
         if (!live()) return
         if (!simulating && onCall()) {
             Events.add("${s.label} held: on a call")
             return
         }
         if (!simulating && !spamOk()) return
-        voice.play(s.file, s.speech)
+        voice.play(s.file, s.speech, then)
         show(s)
         val boost = boostMb()
         Events.add("${s.label}  ($note)" + if (boost > 0) "  +%.1f dB".format(boost / 100.0) else "")
@@ -727,7 +736,7 @@ object Gpws {
         inTraffic = false
         speeds.clear()
         overCount = 0
-        overspeedArmed = true
+        overspeedDone = false
         Runway.reset()
         Terrain.reset()
         Motion.reset()
@@ -767,6 +776,7 @@ object Gpws {
         voice.stopAll()
         stopTicking()
         reset()
+        exact = false
         simulating = true
         Events.add("simulated approach from 650 m")
         var actual = 650.0

@@ -111,7 +111,7 @@ class NavListener : NotificationListenerService() {
         val r = NavParser.read(this, n)
         // A Live Update is navigation even before its bar has a distance (parked, or a reroute blip).
         val useful = r.metres != null || r.arrived || r.rerouting || r.liveUpdate
-        watchReadable(sbn, n, useful)
+        watchReadable(sbn, r, useful)
         if (useful || navKey == null || sbn.key == navKey) Events.showMaps(r, NavParser.extras(n))
         if (!useful && sbn.key != navKey) return  // some other ongoing Maps notification
         navKey = sbn.key
@@ -131,9 +131,11 @@ class NavListener : NotificationListenerService() {
      * changed its layout. A minute and a few updates of nothing before saying so; any reading clears it.
      * A blank after a good reading (a tunnel, a reroute) is a blip, not a new layout.
      */
-    private fun watchReadable(sbn: StatusBarNotification, n: Notification, useful: Boolean) {
+    private fun watchReadable(sbn: StatusBarNotification, r: NavParser.Reading, useful: Boolean) {
         if (sbn.packageName != NavParser.MAPS) return  // Waze is a bonus: its layout isn't one we promise
-        if (n.category != Notification.CATEGORY_NAVIGATION && !useful) return
+        // Only a notification that's clearly guiding counts: with Android Auto, Maps shows "Driving with
+        // Google Maps" or "Starting navigation…" for a minute or two before the first turn.
+        if (!r.guidance) return
         if (sbn.key != probeKey) {
             probeKey = sbn.key
             probeSince = SystemClock.elapsedRealtime()

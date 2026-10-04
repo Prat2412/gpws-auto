@@ -442,7 +442,7 @@ class MainActivity : Activity() {
             number.size(if (n.length > 3) 88f else 104f)
             number.setTextColor(if (a.distance == null) s.faint else if (a.belowMins) s.warn else s.ink)
             unit.text = u
-            next.text = a.next?.sound?.short ?: "—"
+            next.text = a.next?.short ?: "—"
             last.text = a.last ?: "—"
             profile.fraction = a.distance?.let { ProfileView.position(it) }
             profile.dh = if (minimumsOn()) ProfileView.position(Gpws.minimumsM.toDouble()) else null
@@ -459,7 +459,7 @@ class MainActivity : Activity() {
                 seqKey = key
                 seq.removeAllViews()
                 a.callouts.forEach { c ->
-                    seq.addView(s.text(c.sound.short, 17f, s.ink, Fonts.condensed).apply {
+                    seq.addView(s.text(c.short, 17f, s.ink, Fonts.condensed).apply {
                         when (state(c)) {
                             0 -> {
                                 setTextColor(s.faint)
@@ -597,7 +597,7 @@ class MainActivity : Activity() {
             }
             unreadable.visibility = if (Gpws.mapsUnreadable && !nav) View.VISIBLE else View.GONE
             mins.text = a.minutes?.let { "$it min" } ?: ""
-            next.text = a.next?.sound?.short ?: "—"
+            next.text = a.next?.short ?: "—"
             last.text = a.last ?: "—"
             val p = Gpws.pack
             voice.text = "${if (p.short == "MDC") "MDC" else p.maker} ${p.model}"
@@ -690,7 +690,7 @@ class MainActivity : Activity() {
                 Switch(Gpws.Feature.GLIDESLOPE, "Glideslope", "You missed a turn"),
                 Switch(Gpws.Feature.MISSED_RETARD, "Missed-turn RETARD", "RETARD instead of GLIDESLOPE, for fun"),
                 Switch(Gpws.Feature.TRAFFIC, "Traffic", "Jams, then clear of conflict"),
-                Switch(Gpws.Feature.OVERSPEED, "Overspeed", "One clacker above the limit"),
+                Switch(Gpws.Feature.OVERSPEED, "Overspeed", "Airbus warning chime, once a trip"),
                 Switch(Gpws.Feature.TERRAIN, "Terrain", "Steep ghats: terrain, don't sink"),
                 Switch(Gpws.Feature.BANK_ANGLE, "Bank angle", "Corners over 0.4 g"),
                 Switch(Gpws.Feature.SINK_RATE, "Sink rate · Pull up", "After hard braking"),
