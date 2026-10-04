@@ -10,6 +10,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -228,7 +229,7 @@ class PfdView(ctx: Context) : View(ctx) {
         c.drawText("RADIO", cx, a.bottom - 11.u, text)
         text.textSize = 6.u
         text.color = if (v <= Gpws.minimumsM) Cockpit.AMBER else Cockpit.WHITE
-        c.drawText(if (v >= 10_000) "%.1fK".format(v / 1000f) else v.toString(), cx, a.bottom - 4.5.u, text)
+        c.drawText(if (v >= 10_000) String.format(Locale.US, "%.1fK", v / 1000f) else v.toString(), cx, a.bottom - 4.5.u, text)
     }
 
     // The callout or alert that just played, boxed in the middle of the display.
@@ -372,7 +373,7 @@ class PfdView(ctx: Context) : View(ctx) {
         val v = dist.roundToInt()
         text.textSize = 4.2.u
         text.color = if (v <= Gpws.minimumsM) Cockpit.AMBER else Cockpit.WHITE
-        c.drawText(if (v >= 10_000) "%.1fK".format(v / 1000f) else v.toString(), (t.left + t.right + 2.5.u) / 2, cy + 1.6.u, text)
+        c.drawText(if (v >= 10_000) String.format(Locale.US, "%.1fK", v / 1000f) else v.toString(), (t.left + t.right + 2.5.u) / 2, cy + 1.6.u, text)
     }
 
     private fun readout(c: Canvas, left: Float, right: Float, cy: Float, pointRight: Boolean) {
@@ -426,7 +427,7 @@ class PfdView(ctx: Context) : View(ctx) {
         c.drawRect(r, line)
         text.textSize = 3.u
         text.color = if (ok) Cockpit.WHITE else Cockpit.AMBER
-        c.drawText(if (ok) "%03d".format(heading.roundToInt() % 360) else "HDG", cx, top - 1.9.u, text)
+        c.drawText(if (ok) String.format(Locale.US, "%03d", heading.roundToInt() % 360) else "HDG", cx, top - 1.9.u, text)
         fill.color = Cockpit.WHITE
         path.reset()
         path.moveTo(cx - 1.u, top - 0.9.u)

@@ -43,8 +43,9 @@ your music during callouts, gets louder at speed, and stays quiet during calls.
 
 ## Install
 
-Needs Android 8 or newer and Google Maps. On Android 16 and newer any Maps language works. On Android 15 and older, Maps must be in English (on Android 13+ you can
-set just Maps to English in Settings → Apps → Maps → Language). Distances in miles work too.
+Needs Android 8 or newer and Google Maps, in km or miles. Maps can be in English or most other
+languages; if GPWS Auto can't read yours, the home screen says so, and setting just Maps to English
+(Settings → Apps → Maps → Language, Android 13+) works while it gets fixed.
 
 1. Download the latest `.apk` from [Releases](https://github.com/Prat2412/gpws-auto/releases/latest) and open it. If Android asks,
    allow your browser to install apps.
@@ -67,7 +68,7 @@ Tap **Status → Updates** to check this page for a newer version. GPWS Auto dow
 Android asks you to confirm the install. It only checks when you tap.
 
 If a Google Maps update ever changes its notification so GPWS Auto can't read it, the home
-screen says **Can't read Maps**, with a button to check for a fixed version.
+screen says **Can't read Maps**, with buttons to check for a fixed version or report it.
 
 ## Privacy
 
@@ -85,8 +86,8 @@ the way you would without it.
 ## Built with AI
 
 I'm not a programmer. The whole app was written by Claude (Anthropic's AI, Opus 5.5) from my
-ideas, and I tested it in my car. Found a bug? [Open an issue](https://github.com/Prat2412/gpws-auto/issues)
-(or use **Status → Report a problem** in the app). Pull requests are welcome.
+ideas, and I tested it in my car. Found a bug or have an idea? [Tell me here](https://github.com/Prat2412/gpws-auto/issues/new/choose)
+(or tap **Please add suggestions and bugs** on the app's home screen). Pull requests are welcome.
 
 ## Build it yourself
 

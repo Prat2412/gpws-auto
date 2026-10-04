@@ -451,13 +451,7 @@ class TitleView(ctx: Context, private val skin: Skin, private val version: Strin
         plane.draw(c)
         c.restore()
 
-        // Who made it, and which version.
-        text.typeface = skin.sub
-        text.letterSpacing = if (plate) 0.16f else 0.02f
-        text.textSize = 14 * sp
-        text.color = skin.ink
-        text.alpha = shown
-        c.drawText(skin.name("by Prat"), w / 2, h - 58 * d, text)
+        // Which version.
         text.typeface = skin.body
         text.letterSpacing = 0f
         text.textSize = 12 * sp

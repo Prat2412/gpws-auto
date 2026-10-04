@@ -44,6 +44,8 @@ private const val WRAP = LinearLayout.LayoutParams.WRAP_CONTENT
 private const val IMPORT = 1
 private const val IMPORT_PACK = 2
 private const val BLACK = 0xFF141414.toInt()
+// GitHub's "new issue" page: a bug report form and a suggestion form. Needs a free GitHub account.
+private const val FEEDBACK = "https://github.com/${Updater.REPO}/issues/new/choose"
 
 /**
  * The app's one screen, drawn in either of two looks (see [Skin]): a paper approach plate or
@@ -104,7 +106,7 @@ class MainActivity : Activity() {
     /** The title screen over the first page, on a fresh start only. Gone after 1.5 s, or at a tap. */
     private fun titleScreen(root: FrameLayout) {
         val t = TitleView(this, skin, Updater.installed(this)).apply {
-            contentDescription = "GPWS Auto, by Prat"
+            contentDescription = "GPWS Auto"
             isClickable = true
         }
         var gone = false
@@ -272,12 +274,19 @@ class MainActivity : Activity() {
     /** On both home pages, hidden until Maps can't be read: then it points at the update. */
     private fun unreadableWarning(col: LinearLayout): View = skin.caution(
         col, "Can't read Maps",
-        "Maps is navigating, but GPWS can't read the distance. On Android 15 or older, set Maps " +
-            "to English. Otherwise, update GPWS:",
+        "Maps is navigating, but GPWS can't read the distance. Update GPWS, or report it with a " +
+            "screenshot of the Maps notification.",
     ).apply {
-        addView(skin.button("Check for update", primary = true) { checkForUpdate() }, skin.lp(top = 10))
+        addView(LinearLayout(context).apply {
+            addView(skin.button("Check for update", primary = true) { checkForUpdate() })
+            addView(skin.button("Report it") { openLink(FEEDBACK) }, skin.lp(start = 8))
+        }, skin.lp(top = 10))
         visibility = View.GONE
     }
+
+    /** On both home pages: where anyone can send a suggestion or a bug. */
+    private fun feedbackButton(col: LinearLayout) =
+        col.addView(skin.button("Please add suggestions and bugs") { openLink(FEEDBACK) }, skin.lp(width = MATCH, top = 10))
 
     private fun missedNote() = when {
         Gpws.isOn(Gpws.Feature.MISSED_RETARD) -> "Wrong turn: RETARD, RETARD, then the callouts restart."
@@ -391,6 +400,7 @@ class MainActivity : Activity() {
         seqBox.addView(seq, s.lp(width = MATCH))
         col.addView(seqBox, s.lp(width = MATCH, top = 10))
         col.addView(s.button("Open classic PFD") { open(Page.PFD) }, s.lp(width = MATCH, top = 10))
+        feedbackButton(col)
 
         col.addView(LinearLayout(this).apply {
             background = s.outline(2)
@@ -558,6 +568,7 @@ class MainActivity : Activity() {
         val trafficTile = tile("TRAFFIC", { Gpws.isOn(Gpws.Feature.TRAFFIC) }) { Gpws.setOn(Gpws.Feature.TRAFFIC, !Gpws.isOn(Gpws.Feature.TRAFFIC)) }
         col.addView(tiles, s.lp(width = MATCH, top = 10))
         col.addView(s.button("Open classic PFD") { open(Page.PFD) }, s.lp(width = MATCH, top = 10))
+        feedbackButton(col)
         mapsVoiceCaution(col)
 
         live = {
@@ -845,9 +856,7 @@ class MainActivity : Activity() {
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
 
         val support = s.section(col, "Support")
-        s.row(support, "Report a problem", "Tell me on GitHub what went wrong", s.value(s.name("Open"))) {
-            openLink("https://github.com/${Updater.REPO}/issues")
-        }
+        s.row(support, "Suggestions and bugs", "Add yours on GitHub", s.value(s.name("Open"))) { openLink(FEEDBACK) }
         s.row(support, "Buy me a coffee", "If GPWS Auto made you smile ☕", s.value(s.name("Open"))) {
             openLink("https://buymeacoffee.com/prat12")
         }

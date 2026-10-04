@@ -109,7 +109,8 @@ class NavListener : NotificationListenerService() {
         if (!ongoing) return
         Gpws.init(this)
         val r = NavParser.read(this, n)
-        val useful = r.metres != null || r.arrived || r.rerouting
+        // A Live Update is navigation even before its bar has a distance (parked, or a reroute blip).
+        val useful = r.metres != null || r.arrived || r.rerouting || r.liveUpdate
         watchReadable(sbn, n, useful)
         if (useful || navKey == null || sbn.key == navKey) Events.showMaps(r, NavParser.extras(n))
         if (!useful && sbn.key != navKey) return  // some other ongoing Maps notification
@@ -131,6 +132,7 @@ class NavListener : NotificationListenerService() {
      * A blank after a good reading (a tunnel, a reroute) is a blip, not a new layout.
      */
     private fun watchReadable(sbn: StatusBarNotification, n: Notification, useful: Boolean) {
+        if (sbn.packageName != NavParser.MAPS) return  // Waze is a bonus: its layout isn't one we promise
         if (n.category != Notification.CATEGORY_NAVIGATION && !useful) return
         if (sbn.key != probeKey) {
             probeKey = sbn.key

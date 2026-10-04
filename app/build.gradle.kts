@@ -19,8 +19,8 @@ android {
         minSdk = 26
         targetSdk = 34
         // Bump both for every GitHub release: the in-app updater compares the release tag to versionName.
-        versionCode = 4  // never goes down: phones that had the test builds still update
-        versionName = "1.0"
+        versionCode = 5  // never goes down: phones that had the test builds still update
+        versionName = "1.1"
     }
 
     signingConfigs {
