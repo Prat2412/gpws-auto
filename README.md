@@ -84,8 +84,9 @@ the way you would without it.
 ## Built with AI
 
 I'm not a programmer. The whole app was written by Claude (Anthropic's AI, Opus 5.5) from my
-ideas, and I tested it in my car. Found a bug or have an idea? [Tell me here](https://github.com/Prat2412/gpws-auto/issues/new/choose)
-(or tap **Please add suggestions and bugs** on the app's home screen). Pull requests are welcome.
+ideas, and I tested it in my car. Found a bug or have an idea? [Tell me here](https://docs.google.com/forms/d/e/1FAIpQLSeIMkfe_hZXBLIRI6WD3DneDG2GePbKvgT9Y7LeRID8Kkv5Cg/viewform):
+a short form, no sign-in (or tap **Please add suggestions and bugs** on the app's home screen). On GitHub?
+[Open an issue](https://github.com/Prat2412/gpws-auto/issues/new/choose) instead. Pull requests are welcome.
 
 ## Build it yourself
 

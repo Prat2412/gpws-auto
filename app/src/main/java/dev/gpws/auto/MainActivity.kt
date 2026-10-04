@@ -45,8 +45,8 @@ private const val IMPORT = 1
 private const val IMPORT_PACK = 2
 private const val SAVE_LOG = 3
 private const val BLACK = 0xFF141414.toInt()
-// GitHub's "new issue" page: a bug report form and a suggestion form. Needs a free GitHub account.
-private const val FEEDBACK = "https://github.com/${Updater.REPO}/issues/new/choose"
+// A Google Form for bugs and suggestions: no sign-in needed, and only the developer sees the answers.
+private const val FEEDBACK = "https://docs.google.com/forms/d/e/1FAIpQLSeIMkfe_hZXBLIRI6WD3DneDG2GePbKvgT9Y7LeRID8Kkv5Cg/viewform"
 
 /**
  * The app's one screen, drawn in either of two looks (see [Skin]): a paper approach plate or
@@ -796,7 +796,7 @@ class MainActivity : Activity() {
         s.row(tools, "Updates", "Version ${Updater.installed(this)} · from GitHub", s.value(s.name("Check"))) { checkForUpdate() }
 
         val support = s.section(col, "Support")
-        s.row(support, "Suggestions and bugs", "Add yours on GitHub", s.value(s.name("Open"))) { openLink(FEEDBACK) }
+        s.row(support, "Suggestions and bugs", "A quick form, no sign-in", s.value(s.name("Open"))) { openLink(FEEDBACK) }
         s.row(support, "Buy me a coffee", "If GPWS Auto made you smile ☕", s.value(s.name("Open"))) {
             openLink("https://buymeacoffee.com/prat12")
         }
