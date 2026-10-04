@@ -686,7 +686,7 @@ class MainActivity : Activity() {
             "Warnings" to listOf(
                 Switch(Gpws.Feature.GLIDESLOPE, "Glideslope", "You missed a turn"),
                 Switch(Gpws.Feature.MISSED_RETARD, "Missed-turn RETARD", "RETARD instead of GLIDESLOPE, for fun"),
-                Switch(Gpws.Feature.TRAFFIC, "Traffic", "When Maps warns of congestion ahead"),
+                Switch(Gpws.Feature.TRAFFIC, "Traffic", "When Maps warns of a jam, crash or closure"),
                 Switch(Gpws.Feature.OVERSPEED, "Overspeed", "Airbus warning chime, once a trip"),
                 Switch(Gpws.Feature.TERRAIN, "Terrain", "Steep ghats: terrain, don't sink"),
                 Switch(Gpws.Feature.BANK_ANGLE, "Bank angle", "Corners over 0.4 g"),

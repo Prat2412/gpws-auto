@@ -30,7 +30,7 @@ If you enjoy it, you can [buy me a coffee ☕](https://buymeacoffee.com/prat12).
 | SINK RATE / PULL UP | Hard braking | GPS speed dropping fast |
 | TOO LOW TERRAIN | Hitting a speed breaker fast | The accelerometer feels the jolt |
 | GLIDESLOPE | You miss a turn and Maps reroutes (or RETARD, for fun) | Maps' distance jumps up |
-| TRAFFIC | Maps warns of congestion ahead | Maps' own traffic alert |
+| TRAFFIC | Maps warns of a jam, crash, closure or roadworks ahead | Maps' own traffic alerts |
 | Overspeed chime (Airbus master warning) | The first time each trip you go over a speed you set | GPS speed |
 | Autopilot disconnect | You cancel navigation before arriving | Maps' notification goes away |
 

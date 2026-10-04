@@ -139,19 +139,29 @@ object NavParser {
         "重新规划", "重新規劃", "重新计算", "重新計算", "再検索", "재탐색", "מחשב מחדש", "إعادة حساب", "إعادة التوجيه",
     )
 
-    // Maps warning of a jam ahead. Latin-script words must stand alone ("Stau", not "Staudenweg").
+    // Maps warning of something on the road ahead: a jam or its delay, a crash, a stalled car, debris,
+    // a closure, roadworks, flooding (not speed cameras or police, and not a faster route).
+    // Latin-script words must stand alone ("Stau", not "Staudenweg").
     private val CONGESTION = Regex(
         listOf(
-            "congestion", "heavy traffic", "traffic ahead", "slow traffic", "traffic jam", "slowdown", "stop-and-go",
-            "stop and go", "congestión", "tráfico denso", "embouteillage", "bouchon", "ralentissement", "stau",
-            "congestionamento", "trânsito intenso", "traffico intenso", "macet", "kemacetan", "yoğun trafik",
+            "congestion", "heavy traffic", "traffic ahead", "slow traffic", "slow-moving traffic", "stopped traffic",
+            "traffic jam", "slowdown", "stop-and-go", "stop and go", "min delay", "minute delay", "minutes of delay",
+            "crash", "accident", "collision", "stalled vehicle", "disabled vehicle", "stopped vehicle",
+            "object on road", "debris", "lane closure", "lane closed", "road closed", "road closure",
+            "construction", "roadwork", "roadworks", "flooded road", "flooding",
+            "congestión", "tráfico denso", "accidente", "embouteillage", "bouchon", "ralentissement", "stau",
+            "unfall", "congestionamento", "trânsito intenso", "acidente", "traffico intenso", "incidente",
+            "macet", "kemacetan", "kecelakaan", "yoğun trafik", "kaza",
         ).joinToString("|") { "\\b${Regex.escape(it)}\\b" } + "|" +
-            listOf("भारी ट्रैफ़िक", "भारी ट्रैफिक", "ट्रैफ़िक जाम", "ट्रैफिक जाम", "भीड़", "जाम", "пробк", "затор", "渋滞", "拥堵", "擁堵", "정체", "ازدحام", "زحمة", "עומס")
-                .joinToString("|") { Regex.escape(it) },
+            listOf(
+                "भारी ट्रैफ़िक", "भारी ट्रैफिक", "ट्रैफ़िक जाम", "ट्रैफिक जाम", "धीमा ट्रैफ़िक", "धीमा ट्रैफिक", "भीड़", "जाम",
+                "दुर्घटना", "सड़क बंद", "लेन बंद", "निर्माण कार्य", "пробк", "затор", "авари", "ДТП", "渋滞", "事故", "通行止め",
+                "拥堵", "擁堵", "封路", "정체", "사고", "ازدحام", "زحمة", "حادث", "עומס", "תאונה",
+            ).joinToString("|") { Regex.escape(it) },
         RegexOption.IGNORE_CASE,
     )
 
-    /** The line in which Maps warns of a jam ahead ("Congestion ahead · +6 min"), if there is one. */
+    /** The line in which Maps warns of trouble ahead ("Congestion ahead · +6 min", "Crash reported"), if any. */
     fun congestion(lines: List<String>): String? = lines.firstOrNull { CONGESTION.containsMatchIn(normalize(it)) }
 
     private fun words(list: String) = list.trim().split(Regex("\\s+")).map { it.lowercase() }.toSet()
