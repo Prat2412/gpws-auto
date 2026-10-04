@@ -183,7 +183,7 @@ object NavParser {
      * Adds what the phone's own languages call km, m, mi, ft, yd, minutes and hours (Android's
      * CLDR unit data, the same source Maps' translations follow), for anything the tables miss.
      */
-    private fun learnPhoneUnits() {
+    fun learnPhoneUnits() {
         if (learned) return
         learned = true
         try {

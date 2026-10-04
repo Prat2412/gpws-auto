@@ -1,5 +1,9 @@
 package dev.gpws.auto
 
+import android.icu.text.MeasureFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
+import android.os.LocaleList
 import java.util.Locale
 import kotlin.math.abs
 
@@ -65,8 +69,28 @@ object MapsSelfTest {
         Sample("Unknown words: stays quiet", classic("250 zz", "Turn left", "13 qq · 4.6 zz"), null),
     )
 
+    /**
+     * A trip summary written the way each of the phone's own languages writes it ("13 мин. · 4,6 км"),
+     * from Android's unit data: proves the words learned from the phone read right on this phone.
+     */
+    private fun phoneSamples(): List<Sample> = try {
+        val locales = LocaleList.getDefault()
+        (0 until locales.size()).map { i ->
+            val f = MeasureFormat.getInstance(locales[i], MeasureFormat.FormatWidth.SHORT)
+            val trip = "${f.format(Measure(13, MeasureUnit.MINUTE))} · ${f.format(Measure(4.6, MeasureUnit.KILOMETER))} · 11:55"
+            Sample("Your phone's ${locales[i].displayName}", classic("250 m", "Turn left", trip), 4600.0)
+        }
+    } catch (e: Throwable) {
+        emptyList()  // no unit data on this Android: the built-in tables are all there is
+    }
+
     /** Every sample through the parser: whether it read what a real phone would expect, and what it got. */
-    fun selfTest(): List<Pair<Boolean, String>> = SAMPLES.map { s ->
+    fun selfTest(): List<Pair<Boolean, String>> {
+        NavParser.learnPhoneUnits()  // as on a drive: the phone's own words in, before the first sample
+        return (SAMPLES + phoneSamples()).map { check(it) }
+    }
+
+    private fun check(s: Sample): Pair<Boolean, String> {
         val r = NavParser.parse(s.fields)
         val got = r.metres
         val ok = when {
@@ -79,6 +103,6 @@ object MapsSelfTest {
             got == null -> "no distance"
             else -> String.format(Locale.US, "%.0f m to go", got)
         }
-        ok to "${s.name}: $said"
+        return ok to "${s.name}: $said"
     }
 }

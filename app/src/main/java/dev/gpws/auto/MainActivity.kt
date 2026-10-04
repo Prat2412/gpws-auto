@@ -37,12 +37,16 @@ import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 private const val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
 private const val WRAP = LinearLayout.LayoutParams.WRAP_CONTENT
 private const val IMPORT = 1
 private const val IMPORT_PACK = 2
+private const val SAVE_LOG = 3
 private const val BLACK = 0xFF141414.toInt()
 // GitHub's "new issue" page: a bug report form and a suggestion form. Needs a free GitHub account.
 private const val FEEDBACK = "https://github.com/${Updater.REPO}/issues/new/choose"
@@ -1299,6 +1303,16 @@ class MainActivity : Activity() {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
         val uri = data?.data
+        if (requestCode == SAVE_LOG) {
+            if (resultCode != RESULT_OK || uri == null) return
+            Thread {
+                val result = runCatching { contentResolver.openOutputStream(uri)!!.use { it.write(Events.driveLog()) } }
+                main.post {
+                    Toast.makeText(this, result.fold({ "Drive log saved" }, { "Couldn't save: ${it.message}" }), Toast.LENGTH_LONG).show()
+                }
+            }.start()
+            return
+        }
         if (requestCode == IMPORT_PACK) {
             if (resultCode != RESULT_OK || uri == null) return
             Thread {
@@ -1368,16 +1382,59 @@ class MainActivity : Activity() {
         val s = skin
         val col = s.page()
         col.addView(subTitle(Page.LOG), s.lp(width = MATCH))
+        val drive = s.block(s.section(col, "Drive log"))
+        drive.addView(LinearLayout(this).apply {
+            addView(s.button("Save") { saveLog() }, s.lp(width = 0, weight = 1f))
+            addView(s.button("Share") { shareLog() }, s.lp(width = 0, weight = 1f, start = 8))
+        }, s.lp(width = MATCH))
+        drive.addView(
+            s.note(
+                "Every Maps update and every call from recent drives, with times: what it takes to fix a " +
+                    "late or missed call. It has street names in it, so send it only to people you trust, " +
+                    "never in a public post.",
+            ),
+            s.lp(top = 10),
+        )
         val maps = s.text("", 12f, s.ink, Typeface.MONOSPACE)
         s.block(s.section(col, "Maps")).addView(maps)
         val events = s.text("", 12f, s.ink, Typeface.MONOSPACE)
         s.block(s.section(col, "Events")).addView(events)
-        col.addView(s.note("Every drive is also saved on the phone in files/drive_log.txt."), s.lp(top = 12))
         refresh = {
             maps.text = Events.maps
             events.text = Events.log().ifEmpty { "Nothing yet." }
         }
         return col
+    }
+
+    /** Saves the drive log wherever you pick: Downloads by default. */
+    private fun saveLog() {
+        if (Events.driveLog().isEmpty()) return Toast.makeText(this, "Nothing logged yet: go for a drive first", Toast.LENGTH_LONG).show()
+        val name = "gpws-drive-log-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".txt"
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TITLE, name)
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, SAVE_LOG)
+        } catch (e: Exception) {
+            Toast.makeText(this, "No file picker on this phone", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun shareLog() {
+        val log = Events.driveLog()
+        if (log.isEmpty()) return Toast.makeText(this, "Nothing logged yet: go for a drive first", Toast.LENGTH_LONG).show()
+        File(cacheDir, "share/${ShareProvider.LOG}").apply {
+            parentFile?.mkdirs()
+            writeBytes(log)
+        }
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_STREAM, ShareProvider.LOG_URI)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        send.clipData = ClipData.newRawUri(ShareProvider.LOG, ShareProvider.LOG_URI)  // carries the read grant through the chooser
+        startActivity(Intent.createChooser(send, "Share drive log"))
     }
 
     private fun pfd(): View {

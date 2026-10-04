@@ -62,6 +62,13 @@ object Events {
 
     fun log() = lines.joinToString("\n")
 
+    /** The whole drive log, oldest first (the rotated-out file, then the current one), to save or share. */
+    fun driveLog(): ByteArray {
+        val f = file ?: return ByteArray(0)
+        return listOf(File(f.parentFile, "drive_log.old.txt"), f).filter { it.exists() }
+            .fold(ByteArray(0)) { all, part -> all + part.readBytes() }
+    }
+
     private fun persist(line: String) {
         val f = file ?: return
         try {
