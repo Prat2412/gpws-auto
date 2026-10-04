@@ -1,0 +1,51 @@
+name: Bug report
+description: Something didn't work on a drive, or in the app
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping fix GPWS Auto! A screenshot of **Status → Tools → Event log** taken right after the drive helps the most.
+        Please crop out anything personal, like addresses or names.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What went wrong, and what you expected instead.
+      placeholder: It said 500 when I was about 300 m away.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GPWS Auto version
+      description: Shown under Status → Tools → Updates.
+      placeholder: "1.1"
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: Pixel 7a, Android 16
+    validations:
+      required: true
+  - type: input
+    id: maps
+    attributes:
+      label: Google Maps language and units
+      placeholder: English, km
+  - type: dropdown
+    id: car
+    attributes:
+      label: How was the phone connected to the car?
+      options:
+        - Android Auto
+        - Car Bluetooth
+        - Not connected
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag them here. The Event log, and the Maps notification if GPWS said "Can't read Maps".

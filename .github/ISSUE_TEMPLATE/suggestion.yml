@@ -1,0 +1,16 @@
+name: Suggestion
+description: An idea, a new callout, or something you'd like changed
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What's your idea?
+      placeholder: A new callout when…
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it be fun or useful?
