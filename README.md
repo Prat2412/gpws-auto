@@ -47,20 +47,58 @@ Needs Android 8 or newer and Google Maps, in km or miles. Maps can be in English
 languages; if GPWS Auto can't read yours, the home screen says so, and setting just Maps to English
 (Settings → Apps → Maps → Language, Android 13+) works while it gets fixed.
 
-1. Download the latest `.apk` from [Releases](https://github.com/Prat2412/gpws-auto/releases/latest) and open it. If Android asks,
-   allow your browser to install apps.
-2. Open **GPWS Auto** and follow the setup checklist:
+1. Download the latest `.apk` from [Releases](https://github.com/Prat2412/gpws-auto/releases/latest).
+2. **Check it before you install it** (recommended, takes a minute). Upload the `.apk` to
+   [VirusTotal](https://www.virustotal.com) or any other online virus scanner: it's checked by
+   dozens of antivirus engines, and you don't have to install anything. To be sure your download is
+   the real file, compare its SHA-256 (VirusTotal shows it) with the one in the release notes.
+3. Open the `.apk` to install it. If Android asks, allow your browser to install apps. If Google
+   Play Protect says **"App blocked to protect your device"**, see [below](#if-google-play-protect-blocks-the-install).
+4. Open **GPWS Auto** and follow the setup checklist:
    - **Notification access**, so it can read Maps' navigation notification. If Android says it's a
      *restricted setting*, go to Settings → Apps → GPWS Auto → ⋮ → **Allow restricted settings**,
      then try again.
    - **Location: Allow all the time.** The speed-based warnings need it, and it makes the final
      callouts land on time.
    - **Battery: Unrestricted**, so Android doesn't stop it mid-drive.
-3. Start navigating in Google Maps and drive. To hear a landing without driving, use
+5. Start navigating in Google Maps and drive. To hear a landing without driving, use
    **Status → Simulated approach**.
 
 **Tip:** if you also use the Google Maps voice, the two can talk over each other. Use one or the
 other, or mute the Maps voice with the speaker button in Maps.
+
+### If Google Play Protect blocks the install
+
+On some phones, Android shows: *"App blocked to protect your device. This app can request access
+to sensitive data. This can increase the risk of identity theft or financial fraud."*
+
+**This isn't a virus warning.** In India and a growing list of other countries, Google blocks every
+app installed from a browser, file manager or chat app if it can read notifications or SMS. Scam
+apps use those to steal one-time passwords (OTPs), so Google blocks the whole kind of app without
+looking at what any one app actually does. GPWS Auto has to read notifications, because that's the
+only way to get the distance from Google Maps, so it's blocked automatically.
+
+What GPWS Auto actually does with that access: it reads only Google Maps' (and Waze's) navigation
+notifications and skips every other app's, so it never sees your messages or OTPs. Nothing is sent
+anywhere; the drive log it keeps for bug reports stays on your phone unless you share it. You can
+check all of that in [NavListener.kt](app/src/main/java/dev/gpws/auto/NavListener.kt).
+
+To install it anyway (only for an app you trust and have checked, see step 2):
+
+1. Open the **Play Store** → tap your **profile picture** → **Play Protect** → **⚙️**.
+2. Turn off **Scan apps with Play Protect**.
+3. Install the GPWS Auto `.apk`.
+4. **Turn Scan apps with Play Protect back on.** It protects you from real malware, so don't leave it off.
+
+On some phones it's under Settings → Security & privacy → App security → Google Play Protect. If
+Play Protect asks about GPWS Auto later, tap **Keep app**. Updates install from inside the app
+(Status → Updates), so normally you only do this once.
+
+### Why not the Play Store?
+
+GPWS Auto is shared here, free and open source, instead of on the Play Store: no store account,
+fees or approvals between you and the app, and the code for every version is right here for anyone
+to read, check or build. The catch is the Play Protect block above.
 
 ## Updates
 
