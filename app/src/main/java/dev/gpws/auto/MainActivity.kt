@@ -801,15 +801,10 @@ class MainActivity : Activity() {
             openLink("https://buymeacoffee.com/prat12")
         }
 
-        col.addView(
-            s.note(
-                "GPWS reads Google Maps' navigation notification to know how far away you are, so keep " +
-                    "Maps' notifications on. Nothing leaves your phone except update checks, when you tap Check. " +
-                    "For entertainment only: not a navigation or safety system. Use it at your own risk, and " +
-                    "never set it up while driving.",
-            ),
-            s.lp(top = 14),
-        )
+        val about = s.section(col, "About")
+        s.row(about, "Reads only Google Maps", "Its navigation notification, so keep Maps' notifications on", null, null)
+        s.row(about, "Private", "Nothing leaves your phone except update checks you tap", null, null)
+        s.row(about, "Entertainment only", "Not navigation or a safety system. Use it at your own risk", null, null)
 
         refresh = {
             fun state(v: TextView, good: Boolean, okText: String) {
@@ -1018,10 +1013,10 @@ class MainActivity : Activity() {
 
         s.caution(
             col, "For entertainment only",
-            "GPWS Auto is not a navigation app or a safety system: don't rely on its callouts. Keep " +
-                "your attention on the road. Set it up before you drive, or after stopping somewhere " +
-                "safe, never while driving. You use it at your own risk: the developer isn't " +
-                "responsible for any accident, injury, damage, fine or loss.",
+            "• Not a navigation app or a safety system: don't rely on it.\n" +
+                "• Keep your eyes on the road.\n" +
+                "• Set it up before you drive, or stopped somewhere safe.\n" +
+                "• Use it at your own risk: the developer isn't responsible for any mishap.",
         )
         val summary = s.text("", 15f, s.warn, s.sub)
         col.addView(summary, s.lp(top = 14))
