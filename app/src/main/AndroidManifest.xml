@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <!-- Lets the app show the "let GPWS run in the background?" dialog instead of sending you to Settings. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <!-- Only for the optional TomTom "traffic ahead" check and update checks you ask for. Nothing else goes online. -->
+    <!-- Only for update checks you ask for. Nothing else goes online. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Installs an update downloaded from GitHub, after you confirm Android's own install screen. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

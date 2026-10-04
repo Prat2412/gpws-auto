@@ -139,6 +139,21 @@ object NavParser {
         "重新规划", "重新規劃", "重新计算", "重新計算", "再検索", "재탐색", "מחשב מחדש", "إعادة حساب", "إعادة التوجيه",
     )
 
+    // Maps warning of a jam ahead. Latin-script words must stand alone ("Stau", not "Staudenweg").
+    private val CONGESTION = Regex(
+        listOf(
+            "congestion", "heavy traffic", "traffic ahead", "slow traffic", "traffic jam", "slowdown", "stop-and-go",
+            "stop and go", "congestión", "tráfico denso", "embouteillage", "bouchon", "ralentissement", "stau",
+            "congestionamento", "trânsito intenso", "traffico intenso", "macet", "kemacetan", "yoğun trafik",
+        ).joinToString("|") { "\\b${Regex.escape(it)}\\b" } + "|" +
+            listOf("भारी ट्रैफ़िक", "भारी ट्रैफिक", "ट्रैफ़िक जाम", "ट्रैफिक जाम", "भीड़", "जाम", "пробк", "затор", "渋滞", "拥堵", "擁堵", "정체", "ازدحام", "زحمة", "עומס")
+                .joinToString("|") { Regex.escape(it) },
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** The line in which Maps warns of a jam ahead ("Congestion ahead · +6 min"), if there is one. */
+    fun congestion(lines: List<String>): String? = lines.firstOrNull { CONGESTION.containsMatchIn(normalize(it)) }
+
     private fun words(list: String) = list.trim().split(Regex("\\s+")).map { it.lowercase() }.toSet()
 
     private fun phrases(vararg p: String) = Regex(p.joinToString("|") { if (it.startsWith("\\b")) it else Regex.escape(it) }, RegexOption.IGNORE_CASE)
@@ -263,9 +278,9 @@ object NavParser {
         }.joinToString("; ") + "; category=${n.category}; flags=0x${Integer.toHexString(n.flags)}"
     }
 
+    /** Every line of text a notification carries in its extras: title, text, subtext and so on. */
     @Suppress("DEPRECATION")
-    fun read(ctx: Context, n: Notification): Reading {
-        learnPhoneUnits()
+    fun lines(n: Notification): ArrayList<String> {
         val lines = ArrayList<String>()
         val e = n.extras
         for (key in listOf(
@@ -277,7 +292,13 @@ object NavParser {
         }
         e.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.forEach { add(it, lines) }
         add(n.tickerText, lines)
+        return lines
+    }
 
+    @Suppress("DEPRECATION")
+    fun read(ctx: Context, n: Notification): Reading {
+        learnPhoneUnits()
+        val lines = lines(n)
         val r = parse(fields(n, lines))
         if (r.metres != null || r.arrived || r.liveUpdate) return r
         // Fallback for custom layouts: the numbers may only exist inside the notification's views.

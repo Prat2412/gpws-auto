@@ -30,7 +30,7 @@ If you enjoy it, you can [buy me a coffee ☕](https://buymeacoffee.com/prat12).
 | SINK RATE / PULL UP | Hard braking | GPS speed dropping fast |
 | TOO LOW TERRAIN | Hitting a speed breaker fast | The accelerometer feels the jolt |
 | GLIDESLOPE | You miss a turn and Maps reroutes (or RETARD, for fun) | Maps' distance jumps up |
-| TRAFFIC, then CLEAR OF CONFLICT | Stuck in a jam, then moving again | GPS speed |
+| TRAFFIC | Maps warns of congestion ahead | Maps' own traffic alert |
 | Overspeed chime (Airbus master warning) | The first time each trip you go over a speed you set | GPS speed |
 | Autopilot disconnect | You cancel navigation before arriving | Maps' notification goes away |
 
@@ -73,10 +73,8 @@ screen says **Can't read Maps**, with buttons to check for a fixed version or re
 ## Privacy
 
 GPWS Auto reads Google Maps' navigation notification on your phone, and that's all it reads.
-There are no ads, accounts or analytics, and nothing is sent anywhere, except:
-- the optional traffic alert, which asks TomTom about the road ahead, only if you add your own
-  free TomTom API key;
-- update checks to GitHub, only when you tap Check.
+There are no ads, accounts or analytics, and nothing is sent anywhere except update checks to
+GitHub, only when you tap Check.
 
 ## Not a safety system
 
@@ -112,7 +110,7 @@ and level-matched:
 | MD-11 and DC-10 | fgaddon `Aircraft/MD-11/Sounds/CAWS`, `Aircraft/DC-10/Sounds/CAWS` |
 | V1 | fgaddon `Aircraft/787-8/Sounds` |
 | GLIDESLOPE | fgaddon `Aircraft/CRJ700-family/Sounds` chime + fgdata `Sounds/mk-viii` |
-| TRAFFIC, CLEAR OF CONFLICT | fgdata `Sounds/tcas` |
+| TRAFFIC | fgdata `Sounds/tcas` |
 | Overspeed (A320 continuous repetitive chime) | fgaddon `Aircraft/A320-family/Sounds/Cockpit` |
 
 fgaddon: https://svn.code.sf.net/p/flightgear/fgaddon · fgdata: https://gitlab.com/flightgear/fgdata

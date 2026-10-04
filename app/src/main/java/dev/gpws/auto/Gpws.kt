@@ -41,7 +41,6 @@ object Gpws {
         val V1 = Sound("gpws_v1", "V one", "V1", Level.ADVISORY)
         val GLIDESLOPE = Sound("gpws_glideslope", "glideslope", "GLIDESLOPE", Level.CAUTION, "G/S")
         val TRAFFIC = Sound("gpws_traffic", "traffic, traffic", "TRAFFIC", Level.CAUTION)
-        val CLEAR = Sound("gpws_clear", "clear of conflict", "CLEAR OF CONFLICT", Level.ADVISORY, "CLEAR")
         val OVERSPEED = Sound("gpws_overspeed", "overspeed", "OVERSPEED", Level.WARNING, "OVSPD")
         val APPROACHING_RUNWAY = Sound("gpws_approaching_runway", "approaching runway", "APPROACHING RUNWAY", Level.ADVISORY, "APPR RWY")
         val ON_RUNWAY = Sound("gpws_on_runway", "on runway", "ON RUNWAY", Level.ADVISORY, "ON RWY")
@@ -82,10 +81,7 @@ object Gpws {
     private const val GPS_FRESH_MS = 3000L
     private const val TICK_MS = 200L
     private const val V1_MPS = 20 / 3.6
-    private const val TRAFFIC_MPS = 9 / 3.6           // averaging below this for 90 s = stuck in traffic
-    private const val CLEAR_MPS = 22 / 3.6            // averaging above this for 15 s = moving again
-    private const val TRAFFIC_COOLDOWN_MS = 5 * 60_000L
-    private const val TRAFFIC_AHEAD_COOLDOWN_MS = 3 * 60_000L
+    private const val TRAFFIC_COOLDOWN_MS = 3 * 60_000L
     private const val GLIDESLOPE_COOLDOWN_MS = 60_000L
     private const val EXACT_NO_GPS_M = 30.0        // dead-reckoning allowed past a Live Update reading without GPS
     private const val REROUTE_EXACT_M = 75.0          // the Live Update bar growing this much = a longer way in
@@ -108,8 +104,6 @@ object Gpws {
     private var gpsAt = 0L
     private var bearing: Float? = null
     private var bearingAt = 0L
-    private var lat = 0.0
-    private var lon = 0.0
     private var lastTick = 0L
     private var last: Double? = null   // last estimated distance
     private val fired = HashSet<Int>()
@@ -124,23 +118,21 @@ object Gpws {
 
     private var v1Done = false
     private var glideslopeAt = -GLIDESLOPE_COOLDOWN_MS
-    private var inTraffic = false
     private var trafficAt = -TRAFFIC_COOLDOWN_MS
-    private val speeds = ArrayDeque<Pair<Long, Double>>()  // recent GPS speeds, for traffic
     private var overCount = 0
     private var overspeedDone = false  // once a trip
     private val recentSounds = ArrayDeque<Long>()
     private var spamLogged = false
     private var tripMinutes: Int? = null
     private var tripAt = 0L
-    private var aheadNote: String? = null
-    private var aheadAt = 0L
+    private val jamsCalled = HashSet<String>()  // Maps' congestion warnings already called this trip
 
     fun init(context: Context) {
         if (::app.isInitialized) return
         app = context.applicationContext
         Events.init(app)
         voice = Voice(app, { isOn(Feature.DUCK) }, { boostMb() })
+        prefs().edit().remove("tomtom_key").apply()  // left by versions that asked TomTom about traffic
     }
 
     private fun prefs() = app.getSharedPreferences("gpws", Context.MODE_PRIVATE)
@@ -175,11 +167,6 @@ object Gpws {
     var minimumsM: Int
         get() = prefs().getInt("minimums_m", 100)
         set(value) = prefs().edit().putInt("minimums_m", value).apply()
-
-    /** TomTom Traffic API key for "traffic ahead"; blank = off. */
-    var tomtomKey: String
-        get() = prefs().getString("tomtom_key", "") ?: ""
-        set(value) = prefs().edit().putString("tomtom_key", value.trim()).apply()
 
     val pack: Packs.Pack get() = Packs.byId(prefs().getString("pack", "b777"))
 
@@ -247,7 +234,7 @@ object Gpws {
     /** The alerts every voice shares. */
     fun alertSounds() = with(Alerts) {
         listOf(
-            V1, GLIDESLOPE, TRAFFIC, CLEAR, OVERSPEED, APPROACHING_RUNWAY, ON_RUNWAY, TERRAIN, DONT_SINK,
+            V1, GLIDESLOPE, TRAFFIC, OVERSPEED, APPROACHING_RUNWAY, ON_RUNWAY, TERRAIN, DONT_SINK,
             TOO_LOW_TERRAIN, BANK_ANGLE, SINK_RATE, PULL_UP, AP_DISCONNECT,
         )
     }
@@ -284,8 +271,6 @@ object Gpws {
     val heading: Float? get() = if (SystemClock.elapsedRealtime() - bearingAt < GPS_FRESH_MS) bearing else null
     val minutesLeft: Int? get() = if (shown == null) null else tripMinutes
 
-    /** "Traffic ahead" note for the display, shown for a minute after TomTom reports a jam. */
-    val trafficAhead: String? get() = if (SystemClock.elapsedRealtime() - aheadAt < 60_000) aheadNote else null
     var bankDeg = 0.0
         private set
     var lastSound: Sound? = null
@@ -328,6 +313,7 @@ object Gpws {
     }
     /** One reading of Maps' navigation notification. */
     fun onMaps(r: NavParser.Reading) {
+        NavParser.congestion(r.lines)?.let { onMapsCongestion(it) }
         // "Rerouting…" alone isn't a missed turn: a GPS jump makes Maps reroute onto the same road.
         // The missed-turn call waits for the way in to actually get longer (see goAround).
         if (r.rerouting && !simulating) Runway.reset()
@@ -345,13 +331,8 @@ object Gpws {
     fun onMapsEnded() { if (!simulating) ended() }
     fun onGps(mps: Double?, bearing: Float?, lat: Double, lon: Double, altitude: Double?) {
         if (simulating) return
-        this.lat = lat
-        this.lon = lon
         gps(mps, bearing)
         if (mps != null && shown != null) checkTerrain(lat, lon, altitude, mps)
-        if (mps != null && bearing != null && shown != null && armed && isOn(Feature.TRAFFIC)) {
-            Traffic.onFix(tomtomKey, lat, lon, bearing, mps) { trafficAhead(it) }
-        }
     }
 
     /**
@@ -421,17 +402,16 @@ object Gpws {
         if (!simulating && shown != null) Motion.onLinear(v, SystemClock.elapsedRealtime())?.let { motion(it) }
     }
 
-    /** Last known position, for testing the TomTom key. */
-    val position get() = lat to lon
-
-    private fun trafficAhead(f: Traffic.Flow) {
-        if (!f.jammed || shown == null) return
+    /**
+     * Maps itself warning of a jam ahead, in its navigation notification or an alert of its own:
+     * TRAFFIC, TRAFFIC, once per warning, and never twice within 3 minutes.
+     */
+    fun onMapsCongestion(text: String) {
+        if (simulating || shown == null || !jamsCalled.add(text)) return
         val now = SystemClock.elapsedRealtime()
-        aheadNote = if (f.closed) "ROAD CLOSED AHEAD" else "TRAFFIC ${f.aheadMetres} M AHEAD"
-        aheadAt = now
-        if (now - trafficAt < TRAFFIC_AHEAD_COOLDOWN_MS) return
+        if (!isOn(Feature.TRAFFIC) || now - trafficAt < TRAFFIC_COOLDOWN_MS) return
         trafficAt = now
-        say(Alerts.TRAFFIC, "jam ~${f.aheadMetres} m ahead: ${f.currentKmh} km/h, normally ${f.freeFlowKmh}")
+        say(Alerts.TRAFFIC, "Maps: ${text.take(60)}")
     }
 
     // ---- Engine ----
@@ -513,7 +493,6 @@ object Gpws {
         if (shown == null) return
         checkV1(mps)
         checkOverspeed(mps)
-        checkTraffic(mps, now)
         if (Runway.lineUp(mps, now) && isOn(Feature.RUNWAY)) say(Alerts.ON_RUNWAY, "%.0f km/h".format(mps * 3.6))
         Motion.onSpeed(mps, now)?.let { motion(it) }
     }
@@ -545,39 +524,11 @@ object Gpws {
         say(Alerts.OVERSPEED, "%.0f km/h".format(mps * 3.6))
     }
 
-    private fun checkTraffic(mps: Double, now: Long) {
-        speeds.addLast(now to mps)
-        while (speeds.first().first < now - 120_000) speeds.removeFirst()
-        if (!inTraffic) {
-            val avg = averageSpeed(now, 90_000) ?: return
-            if (avg < TRAFFIC_MPS && (last ?: 0.0) > 300 && now - trafficAt > TRAFFIC_COOLDOWN_MS) {
-                inTraffic = true
-                trafficAt = now
-                if (isOn(Feature.TRAFFIC)) say(Alerts.TRAFFIC, "crawling for 90 s")
-            }
-        } else {
-            val avg = averageSpeed(now, 15_000) ?: return
-            if (avg > CLEAR_MPS) {
-                inTraffic = false
-                if (isOn(Feature.TRAFFIC)) say(Alerts.CLEAR, "moving again")
-            }
-        }
-    }
-
     private fun checkTerrain(lat: Double, lon: Double, altitude: Double?, mps: Double) {
         val call = Terrain.onFix(lat, lon, altitude, mps, SystemClock.elapsedRealtime()) ?: return
         if (!isOn(Feature.TERRAIN)) return
         val grade = Terrain.grade() ?: ""
         say(if (call == Terrain.Call.TERRAIN) Alerts.TERRAIN else Alerts.DONT_SINK, grade)
-    }
-
-    /** Average GPS speed over the last [windowMs], or null without that much history yet. */
-    private fun averageSpeed(now: Long, windowMs: Long): Double? {
-        if (speeds.isEmpty() || speeds.first().first > now - windowMs + 2000) return null
-        var sum = 0.0
-        var n = 0
-        for ((t, v) in speeds) if (t >= now - windowMs) { sum += v; n++ }
-        return if (n == 0) null else sum / n
     }
 
     private fun arrived() {
@@ -733,8 +684,7 @@ object Gpws {
         waiting = null
         retardFired = false
         v1Done = false
-        inTraffic = false
-        speeds.clear()
+        jamsCalled.clear()
         overCount = 0
         overspeedDone = false
         Runway.reset()

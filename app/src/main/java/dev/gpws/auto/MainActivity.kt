@@ -14,7 +14,6 @@ import android.content.res.ColorStateList
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Icon
-import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -23,12 +22,10 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
-import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsetsController
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -689,7 +686,7 @@ class MainActivity : Activity() {
             "Warnings" to listOf(
                 Switch(Gpws.Feature.GLIDESLOPE, "Glideslope", "You missed a turn"),
                 Switch(Gpws.Feature.MISSED_RETARD, "Missed-turn RETARD", "RETARD instead of GLIDESLOPE, for fun"),
-                Switch(Gpws.Feature.TRAFFIC, "Traffic", "Jams, then clear of conflict"),
+                Switch(Gpws.Feature.TRAFFIC, "Traffic", "When Maps warns of congestion ahead"),
                 Switch(Gpws.Feature.OVERSPEED, "Overspeed", "Airbus warning chime, once a trip"),
                 Switch(Gpws.Feature.TERRAIN, "Terrain", "Steep ghats: terrain, don't sink"),
                 Switch(Gpws.Feature.BANK_ANGLE, "Bank angle", "Corners over 0.4 g"),
@@ -737,20 +734,6 @@ class MainActivity : Activity() {
         s.stepperRow(limits, "Overspeed limit", overspeed, { changeOverspeed(-10) }, { changeOverspeed(10) })
         s.stepperRow(limits, Gpws.pack.minimumsName, minimums, { changeMinimums(-10) }, { changeMinimums(10) })
 
-        val traffic = s.section(col, "Live traffic")
-        val key = s.value()
-        s.row(traffic, "TomTom key", "Traffic 100–200 m ahead", s.horizontal().apply {
-            addView(key, s.lp(end = 10))
-            addView(s.button("Edit") { editTomTomKey() })
-        }, null)
-        s.block(traffic).addView(
-            s.note(
-                "Every ~20 s while you drive, GPWS asks TomTom about the road ahead. Your position goes to " +
-                    "TomTom only while a key is set; get a free one at developer.tomtom.com. Without one, " +
-                    "TRAFFIC still warns after 90 s stuck in a jam.",
-            ),
-        )
-
         refresh = {
             redraws.forEach { it() }
             title.setRight("${all.count { Gpws.isOn(it.feature) }} OF ${all.size} ON")
@@ -758,9 +741,6 @@ class MainActivity : Activity() {
             overspeed.text = s.name("${Gpws.overspeedKmh} km/h")
             minimums.text = s.name("${Gpws.minimumsM} m")
             minimums.setTextColor(if (minimumsOn()) (if (s.plate) s.ink else s.accent) else s.muted)
-            val set = Gpws.tomtomKey.isNotBlank()
-            key.text = if (set) s.name("Set") else "—"
-            key.setTextColor(if (set) ok else s.muted)
         }
         return col
     }
@@ -773,50 +753,6 @@ class MainActivity : Activity() {
     private fun changeMinimums(delta: Int) {
         Gpws.minimumsM = (Gpws.minimumsM + delta).coerceIn(30, 500)
         refresh()
-    }
-
-    private fun editTomTomKey() {
-        val s = skin
-        val input = EditText(this).apply {
-            setText(Gpws.tomtomKey)
-            hint = "Paste your TomTom API key"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-            typeface = Typeface.MONOSPACE
-            setTextColor(s.ink)
-            setHintTextColor(s.muted)
-            backgroundTintList = ColorStateList.valueOf(s.accent)
-        }
-        val body = s.dialogBody().apply {
-            addView(s.note("Free from developer.tomtom.com. Leave it empty to turn traffic-ahead off."))
-            addView(input, s.lp(top = 8, width = MATCH))
-        }
-        s.show(
-            s.dialog("TomTom traffic key")
-                .setView(body)
-                .setPositiveButton("Save") { _, _ ->
-                    Gpws.tomtomKey = input.text.toString()
-                    refresh()
-                }
-                .setNeutralButton("Test") { _, _ ->
-                    val (lat, lon) = testPosition()
-                    Traffic.test(input.text.toString(), lat, lon) { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
-                }
-                .setNegativeButton("Cancel", null),
-        )
-    }
-
-    /** Somewhere real to test the key against: the last GPS fix, else the phone's last known location. */
-    @SuppressLint("MissingPermission")
-    private fun testPosition(): Pair<Double, Double> {
-        val p = Gpws.position
-        if (p.first != 0.0) return p
-        if (granted(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
-            for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)) {
-                lm.getLastKnownLocation(provider)?.let { return it.latitude to it.longitude }
-            }
-        }
-        return 52.3702 to 4.8952  // Amsterdam, near TomTom HQ: any road works for a key check
     }
 
     // ---- Status: the look, permissions, the car, tools ----
@@ -868,9 +804,7 @@ class MainActivity : Activity() {
         col.addView(
             s.note(
                 "GPWS reads Google Maps' navigation notification to know how far away you are, so keep " +
-                    "Maps' notifications on. Nothing " +
-                    "leaves your phone, except TomTom traffic checks if you add a key, and update checks " +
-                    "when you tap Check.",
+                    "Maps' notifications on. Nothing leaves your phone except update checks, when you tap Check.",
             ),
             s.lp(top = 14),
         )

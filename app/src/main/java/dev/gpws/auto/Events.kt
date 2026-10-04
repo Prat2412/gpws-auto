@@ -62,6 +62,12 @@ object Events {
 
     fun log() = lines.joinToString("\n")
 
+    /** One of Maps' other alerts during a drive: a line on the Event log, and everything about it in the file. */
+    fun mapsAlert(text: List<String>, extras: String) {
+        add("Maps alert: ${text.joinToString(" · ").take(100)}")
+        persist("MAPS ALERT  " + text.joinToString("  ⏎  ") + "  {" + extras + "}")
+    }
+
     /** The whole drive log, oldest first (the rotated-out file, then the current one), to save or share. */
     fun driveLog(): ByteArray {
         val f = file ?: return ByteArray(0)

@@ -106,7 +106,16 @@ class NavListener : NotificationListenerService() {
         val n = sbn.notification
         val ongoing = n.category == Notification.CATEGORY_NAVIGATION ||
             (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
-        if (!ongoing) return
+        if (!ongoing) {
+            // Maps' other alerts while navigating ("Congestion ahead"): into the drive log, and a jam is TRAFFIC.
+            // Only during a drive: places and timeline notifications are none of our business.
+            if (navKey != null && sbn.packageName == NavParser.MAPS) {
+                val lines = NavParser.lines(n)
+                Events.mapsAlert(lines, NavParser.extras(n))
+                NavParser.congestion(lines)?.let { Gpws.onMapsCongestion(it) }
+            }
+            return
+        }
         Gpws.init(this)
         val r = NavParser.read(this, n)
         // A Live Update is navigation even before its bar has a distance (parked, or a reroute blip).
