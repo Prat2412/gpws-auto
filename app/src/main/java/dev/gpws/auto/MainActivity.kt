@@ -804,7 +804,9 @@ class MainActivity : Activity() {
         col.addView(
             s.note(
                 "GPWS reads Google Maps' navigation notification to know how far away you are, so keep " +
-                    "Maps' notifications on. Nothing leaves your phone except update checks, when you tap Check.",
+                    "Maps' notifications on. Nothing leaves your phone except update checks, when you tap Check. " +
+                    "For entertainment only: not a navigation or safety system. Use it at your own risk, and " +
+                    "never set it up while driving.",
             ),
             s.lp(top = 14),
         )
@@ -1014,6 +1016,13 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
 
+        s.caution(
+            col, "For entertainment only",
+            "GPWS Auto is not a navigation app or a safety system: don't rely on its callouts. Keep " +
+                "your attention on the road. Set it up before you drive, or after stopping somewhere " +
+                "safe, never while driving. You use it at your own risk: the developer isn't " +
+                "responsible for any accident, injury, damage, fine or loss.",
+        )
         val summary = s.text("", 15f, s.warn, s.sub)
         col.addView(summary, s.lp(top = 14))
         fun missing() = items.filter { !it.optional && !it.done() }.map { it.label }

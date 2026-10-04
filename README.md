@@ -114,10 +114,17 @@ GPWS Auto reads Google Maps' navigation notification on your phone, and that's a
 There are no ads, accounts or analytics, and nothing is sent anywhere except update checks to
 GitHub, only when you tap Check.
 
-## Not a safety system
+## ⚠️ Disclaimer
 
-It's a toy. It plays sounds; it doesn't watch the road. Keep your eyes on the road and drive
-the way you would without it.
+GPWS Auto is for **entertainment only**. It is **not** a navigation app or a safety system, so
+don't rely on it or take its callouts seriously. Keep your eyes and attention on the road, and drive
+exactly as you would without it.
+
+Set the app up **before you start driving**, or after stopping somewhere safe at the side of the
+road. Never while driving.
+
+You use GPWS Auto at your own risk. The developer is not responsible for any accident, injury,
+damage, fine or loss resulting from its use.
 
 ## Built with AI
 
