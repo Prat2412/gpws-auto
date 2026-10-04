@@ -324,6 +324,8 @@ object Gpws {
                 onMapsDistance(it, r.resolution, r.minutes, r.exact)
                 onMapsManeuver(r.instruction, r.turnMetres)
             }
+            // Maps naming the highway we're on comes even in updates without a distance (just after a reroute).
+            if (!simulating && shown != null) Runway.cruising(r.instruction, SystemClock.elapsedRealtime())
         }
     }
 
@@ -687,7 +689,7 @@ object Gpws {
         jamsCalled.clear()
         overCount = 0
         overspeedDone = false
-        Runway.reset()
+        Runway.newTrip()
         Terrain.reset()
         Motion.reset()
     }

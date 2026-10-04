@@ -6,6 +6,9 @@ package dev.gpws.auto
  * up to speed. Reads only Maps' own turn instructions ("Take the ramp onto NH 48"), so it needs no
  * network or map data. No runway numbers: that would take a clip per number.
  *
+ * Joining a highway Maps never told you to turn onto (you took it instead of the service road it
+ * planned) still gets its ON RUNWAY, once Maps names the highway as the road you're on.
+ *
  * Main thread only.
  */
 object Runway {
@@ -27,21 +30,37 @@ object Runway {
     // Already on one, leaving, or beside it: "Continue on…", "Keep left to stay on…", "Take exit 12…",
     // "Turn left onto NH 48 Service Rd", "Turn left onto Ram Nagar Hwy Link Rd".
     private val NOT_ENTER = Regex("""\b(?:exit|continue|stay|(?:service|link)\s+r(?:oa)?d)\b""", RegexOption.IGNORE_CASE)
+    // Maps naming the road you're on: "Head southwest on NH 48", "Continue on NH 48", "Keep left to stay on NH 48".
+    private val ON = Regex("""\b(?:head\b.*?\bon|continue(?:\s+straight)?\s+on(?:to)?|stay\s+on)\s+(.*)""", RegexOption.IGNORE_CASE)
+    private val SIDE_ROAD = Regex("""\b(?:service|link)\s+r(?:oa)?d\b""", RegexOption.IGNORE_CASE)
 
     private var highway: String? = null  // the highway Maps is taking us onto
     private var called = false
     private var passedAt = 0L            // when that turn left the notification: we took it
     private var fast = 0
+    private var cruise: String? = null   // a highway Maps says we're on, without a turn onto it we saw
+    private var cruiseAt = 0L
+    private var cruiseFast = 0
+    private val announced = HashSet<String>()  // highways ON RUNWAY was said for, this trip
     private var approachAt = -COOLDOWN_MS
     private var onAt = -COOLDOWN_MS
+
+    private fun id(road: String) = HIGHWAY.find(road)?.value?.lowercase()?.replace(Regex("""[\s-]"""), "")
 
     /** The highway [instruction] turns onto, or null if it isn't a turn onto one. */
     fun entry(instruction: String): String? {
         if (!ENTER.containsMatchIn(instruction) || NOT_ENTER.containsMatchIn(instruction)) return null
-        return HIGHWAY.find(instruction)?.value?.lowercase()?.replace(Regex("""[\s-]"""), "")
+        return id(instruction)
     }
 
-    /** Every Maps update. True = say APPROACHING RUNWAY. */
+    /** The highway [instruction] says we're already on ("Head southwest on NH 48"), or null. */
+    fun on(instruction: String): String? {
+        val road = ON.find(instruction)?.groupValues?.get(1)?.substringBefore('·') ?: return null
+        if (SIDE_ROAD.containsMatchIn(road)) return null
+        return id(road)
+    }
+
+    /** Maps updates with a distance. True = say APPROACHING RUNWAY. */
     fun approaching(instruction: String, turnMetres: Double?, now: Long): Boolean {
         val h = entry(instruction)
         if (h == null) {
@@ -61,26 +80,63 @@ object Runway {
         return true
     }
 
+    /** Every Maps update, even one without a distance: a highway we're on that we never saw us join. */
+    fun cruising(instruction: String, now: Long) {
+        val h = on(instruction) ?: return
+        if (h in announced || h == highway || h == cruise) return
+        cruise = h
+        cruiseAt = now
+        cruiseFast = 0
+    }
+
     /** Every GPS fix. True = say ON RUNWAY. */
     fun lineUp(mps: Double, now: Long): Boolean {
-        if (highway == null || passedAt == 0L) return false
-        if (now - passedAt > LINEUP_WINDOW_MS) {
-            reset()
-            return false
-        }
-        fast = if (mps >= LINEUP_MPS) fast + 1 else 0
-        if (fast < LINEUP_FIXES) return false
-        reset()
+        val h = taken(mps, now) ?: cruised(mps, now) ?: return false
+        announced += h
         if (now - onAt < COOLDOWN_MS) return false
         onAt = now
         return true
     }
 
-    /** Off route or trip over: whatever turn we were waiting for no longer counts. */
+    // Up to speed after taking the turn onto a highway.
+    private fun taken(mps: Double, now: Long): String? {
+        val h = highway ?: return null
+        if (passedAt == 0L) return null
+        if (now - passedAt > LINEUP_WINDOW_MS) {
+            reset()
+            return null
+        }
+        fast = if (mps >= LINEUP_MPS) fast + 1 else 0
+        if (fast < LINEUP_FIXES) return null
+        reset()
+        return h
+    }
+
+    // Up to speed on a highway Maps says we're on.
+    private fun cruised(mps: Double, now: Long): String? {
+        val h = cruise ?: return null
+        if (now - cruiseAt > LINEUP_WINDOW_MS) {
+            cruise = null
+            return null
+        }
+        cruiseFast = if (mps >= LINEUP_MPS) cruiseFast + 1 else 0
+        if (cruiseFast < LINEUP_FIXES) return null
+        cruise = null
+        return h
+    }
+
+    /** Off route: whatever turn we were waiting for no longer counts. Still on the same road, though. */
     fun reset() {
         highway = null
         called = false
         passedAt = 0L
         fast = 0
+    }
+
+    /** A new trip: every highway gets its ON RUNWAY again. */
+    fun newTrip() {
+        reset()
+        cruise = null
+        announced.clear()
     }
 }
